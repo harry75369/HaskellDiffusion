@@ -47,7 +47,7 @@ p_xml = do
 
     -- Control points
     E.lexstr "<control_points_set>"
-    control_points <- forM [1..n_cp] $ \j -> do
+    control_points <- forM [1..n_cp] $ \j ->
       P.between (E.lexstr "<control_point") (E.lexstr "/>") $ do
         x <- E.lexstr "x=" >> E.quotes E.float
         y <- E.lexstr "y=" >> E.quotes E.float
@@ -56,19 +56,19 @@ p_xml = do
 
     -- Left colors
     E.lexstr "<left_colors_set>"
-    left_colors <- forM [1..n_lc] $ \j -> do
+    left_colors <- forM [1..n_lc] $ \j ->
       P.between (E.lexstr "<left_color") (E.lexstr "/>") p_color
     E.lexstr "</left_colors_set>"
 
     -- Right colors
     E.lexstr "<right_colors_set>"
-    right_colors <- forM [1..n_rc] $ \j -> do
+    right_colors <- forM [1..n_rc] $ \j ->
       P.between (E.lexstr "<right_color") (E.lexstr "/>") p_color
     E.lexstr "</right_colors_set>"
 
     -- Blur points
     E.lexstr "<blur_points_set>"
-    blur_points <- forM [1..n_bp] $ \j -> do
+    blur_points <- forM [1..n_bp] $ \j ->
       P.between (E.lexstr "<best_scale") (E.lexstr "/>") $ do
         v <- E.lexstr "value=" >> E.quotes E.integer
         gid <- E.lexstr "globalID=" >> E.quotes E.integer

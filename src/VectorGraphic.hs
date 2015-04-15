@@ -9,9 +9,9 @@ import Curve
 ------------------------------------------------------------
 
 data VectorGraphic = VectorGraphic
-  { vg_width  :: Int
-  , vg_height :: Int
-  , vg_curves :: [Curve]
+  { vgWidth  :: Int
+  , vgHeight :: Int
+  , vgCurves :: [Curve]
   }                | Null
   deriving (Show)
 

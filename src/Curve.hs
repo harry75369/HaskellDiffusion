@@ -7,11 +7,11 @@ module Curve
 ------------------------------------------------------------
 
 data Curve = Curve
-  { cr_global_len     :: Int
-  , cr_control_points :: [(Double, Double)]
-  , cr_left_colors    :: [(Int, Int, Int, Int)]
-  , cr_right_colors   :: [(Int, Int, Int, Int)]
-  , cr_blur_points    :: [(Int, Int)]
+  { crGlobalLen     :: Int
+  , crControlPoints :: [(Double, Double)]
+  , crLeftColors    :: [(Int, Int, Int, Int)]
+  , crRightColors   :: [(Int, Int, Int, Int)]
+  , crBlurPoints    :: [(Int, Int)]
   }
   deriving (Show)
 
