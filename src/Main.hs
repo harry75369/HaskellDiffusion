@@ -10,17 +10,31 @@ import Parsers.XMLParser (parseXML)
 import VectorGraphic
 import Curve
 
+import Control.Monad
+import Data.List (sort, nub)
+
 ------------------------------------------------------------
 
 main :: IO ()
-main = fmap head getArgs >>= readFile >>= parseXML >>= print
---main = fmap head getArgs >>= readFile >>= parseXML >>= testGlobalLenAndID
+main = do
+  Just vg <- fmap head getArgs >>= readFile >>= parseXML
+  -- print vg
+  debugVectorGraphics vg
 
-testGlobalLenAndID vg = do
+debugVectorGraphics vg = do
   let curves = vgCurves vg
-      lgids = map (\(_,_,_,gid)->gid) $ concatMap crLeftColors curves
-      rgids = map (\(_,_,_,gid)->gid) $ concatMap crRightColors curves
-      bgids = map snd $ concatMap crBlurPoints curves
-      gids = lgids ++ rgids ++ bgids
-      glens = map crGlobalLen curves
-  print (minimum glens, maximum glens, minimum gids, maximum gids)
+  let nControlPoints = length . crControlPoints
+      gidRangeOfLeftColors curve =
+        let colors = crLeftColors curve
+            gids = map (\(_,_,_,gid)->gid) colors
+         in (minimum gids, maximum gids)
+      gidRangeOfRightColors curve =
+        let colors = crRightColors curve
+            gids = map (\(_,_,_,gid)->gid) colors
+         in (minimum gids, maximum gids)
+      gidRangeOfBlurPoints curve =
+        let points = crBlurPoints curve
+            gids = map snd points
+         in (minimum gids, maximum gids)
+      seesee curve = (nControlPoints curve, crGlobalLen curve, gidRangeOfLeftColors curve, gidRangeOfRightColors curve, gidRangeOfBlurPoints curve, crLifeTime curve)
+  mapM_ print $ sort $ nub $ map seesee curves

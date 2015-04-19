@@ -12,6 +12,6 @@ data VectorGraphic = VectorGraphic
   { vgWidth  :: Int
   , vgHeight :: Int
   , vgCurves :: [Curve]
-  }                | Null
+  }
   deriving (Show)
 

@@ -35,15 +35,15 @@ p_xml = do
   curves <- forM [1..ncurves] $ \i -> do
 
     -- Meta curve info
-    (n_cp, n_lc, n_rc, n_bp, global_len) <- E.angles $ do
+    (n_cp, n_lc, n_rc, n_bp, global_len, life_time) <- E.angles $ do
       E.lexstr "curve"
       n_cp <- E.lexstr "nb_control_points=" >> E.quotes E.integer
       n_lc <- E.lexstr "nb_left_colors=" >> E.quotes E.integer
-      n_gl <- P.option (-1) $ E.lexstr "global_len=" >> E.quotes E.integer
+      gl <- P.option (-1) $ E.lexstr "global_len=" >> E.quotes E.integer
       n_rc <- E.lexstr "nb_right_colors=" >> E.quotes E.integer
       n_bp <- E.lexstr "nb_blur_points=" >> E.quotes E.integer
       lt   <- E.lexstr "lifetime=" >> E.quotes E.integer
-      return (n_cp, n_lc, n_rc, n_bp, fromIntegral n_gl)
+      return (n_cp, n_lc, n_rc, n_bp, fromIntegral gl, fromIntegral lt)
 
     -- Control points
     E.lexstr "<control_points_set>"
@@ -76,13 +76,13 @@ p_xml = do
     E.lexstr "</blur_points_set>"
 
     E.lexstr "</curve>"
-    return $ Curve global_len control_points left_colors right_colors blur_points
+    return $ Curve global_len life_time control_points left_colors right_colors blur_points
 
   E.lexstr "</curve_set>"
   return $ VectorGraphic width height curves
 
-parseXML :: String -> IO VectorGraphic
+parseXML :: String -> IO (Maybe VectorGraphic)
 parseXML s = case P.parse p_xml "XML" s of
-  Left err -> print err >> return Null
-  Right vg -> return vg
+  Left err -> print err >> return Nothing
+  Right vg -> return $ Just vg
 
