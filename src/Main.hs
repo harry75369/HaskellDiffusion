@@ -4,14 +4,14 @@ module Main
 
 ------------------------------------------------------------
 
-import System.Environment
-import Parsers.XMLParser (parseXML)
+import Control.Monad (mapM_)
+import Data.List (sort, nub)
+import System.Environment (getArgs)
 
+import Parsers.XMLParser (parseXML)
+import OpenGL.Window
 import VectorGraphic
 import Curve
-
-import Control.Monad
-import Data.List (sort, nub)
 
 ------------------------------------------------------------
 
@@ -19,7 +19,8 @@ main :: IO ()
 main = do
   Just vg <- fmap head getArgs >>= readFile >>= parseXML
   -- print vg
-  debugVectorGraphics vg
+  -- debugVectorGraphics vg
+  debugOpenGL
 
 debugVectorGraphics vg = do
   let curves = vgCurves vg
@@ -38,3 +39,8 @@ debugVectorGraphics vg = do
          in (minimum gids, maximum gids)
       seesee curve = (nControlPoints curve, crGlobalLen curve, gidRangeOfLeftColors curve, gidRangeOfRightColors curve, gidRangeOfBlurPoints curve, crLifeTime curve)
   mapM_ print $ sort $ nub $ map seesee curves
+
+debugOpenGL = do
+  win <- makeWindow 800 600 "Vector Graphics"
+  displayGLInfo win
+  runWindow win
