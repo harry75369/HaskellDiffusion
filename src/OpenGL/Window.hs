@@ -17,7 +17,7 @@ import qualified Text.PrettyPrint as Pretty
 import           Text.PrettyPrint (($+$), (<+>))
 import           Data.Bits ((.|.))
 
-import OpenGL.Utility (getGLString, getGLInteger)
+import OpenGL.Utility
 import OpenGL.Camera
 import VectorGraphic
 
@@ -54,10 +54,8 @@ newWindow width height title vg = do
   -- Create window and initilize OpenGL
   Just win <- GLFW.createWindow width height title Nothing Nothing
   GLFW.makeContextCurrent (Just win)
-  let states = OpenGLStates 0 0
+  states <- initializeGL
   let camera = defaultCamera
-  glEnable gl_DEPTH_TEST
-  glClearColor 0.5 0.5 0.5 1.0
   let windowContainer = WindowContainer win states camera vg
 
   -- Setup callbacks
@@ -140,3 +138,20 @@ scrollCallback windowContainer = callback
     -- type ScrollCallback = Window -> Double -> Double -> IO ()
     callback :: GLFW.ScrollCallback
     callback win _ _ = return ()
+
+------------------------------------------------------------
+
+initializeGL :: IO OpenGLStates
+initializeGL = do
+  glEnable gl_DEPTH_TEST
+  glClearColor 0.5 0.5 0.5 1.0
+
+  -- Generate and bind vertex array object
+  [vao] <- getGLGen glGenVertexArrays 1
+  glBindVertexArray vao
+
+  -- Generate and bind vertex buffer object
+  [vbo] <- getGLGen glGenBuffers 1
+  glBindBuffer gl_ARRAY_BUFFER vbo
+
+  return $ OpenGLStates vao vbo
