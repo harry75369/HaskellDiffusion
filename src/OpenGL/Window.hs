@@ -1,6 +1,5 @@
 module OpenGL.Window
-( Window(..)
-, newWindow
+( newWindow
 , runWindow
 , displayGLInfo
 ) where
@@ -16,6 +15,7 @@ import           Control.Monad (forever)
 import           System.Exit (exitSuccess)
 import qualified Text.PrettyPrint as Pretty
 import           Text.PrettyPrint (($+$), (<+>))
+import           Data.Bits ((.|.))
 
 import OpenGL.Utility (getGLString, getGLInteger)
 import OpenGL.Camera
@@ -23,16 +23,23 @@ import VectorGraphic
 
 ------------------------------------------------------------
 
-data Window = Window
-  { window :: GLFW.Window
-  , camera :: Camera
-  , vecimg :: Maybe VectorGraphic
+data OpenGLStates = OpenGLStates
+  { getVao :: GLuint
+  , getVbo :: GLuint
+  }
+  deriving (Show)
+
+data WindowContainer = WindowContainer
+  { getWindow :: GLFW.Window
+  , getStates :: OpenGLStates
+  , getCamera :: Camera
+  , getVecimg :: Maybe VectorGraphic
   }
   deriving (Show)
 
 ------------------------------------------------------------
 
-newWindow :: Int -> Int -> String -> Maybe VectorGraphic -> IO Window
+newWindow :: Int -> Int -> String -> Maybe VectorGraphic -> IO WindowContainer
 newWindow width height title vg = do
   True <- GLFW.init
 
@@ -44,32 +51,36 @@ newWindow width height title vg = do
   GLFW.windowHint $ GLFW.WindowHint'OpenGLForwardCompat True
   GLFW.windowHint $ GLFW.WindowHint'OpenGLProfile GLFW.OpenGLProfile'Core
 
-  -- Create window
+  -- Create window and initilize OpenGL
   Just win <- GLFW.createWindow width height title Nothing Nothing
   GLFW.makeContextCurrent (Just win)
+  let states = OpenGLStates 0 0
+  let camera = defaultCamera
+  glEnable gl_DEPTH_TEST
+  glClearColor 0.5 0.5 0.5 1.0
+  let windowContainer = WindowContainer win states camera vg
 
   -- Setup callbacks
-  let closeWindow win = GLFW.destroyWindow win >> GLFW.terminate >> exitSuccess
-      keyPressed win GLFW.Key'Escape _ GLFW.KeyState'Pressed _ = closeWindow win
-      keyPressed _   _               _ _                     _ = return ()
-  GLFW.setWindowCloseCallback win (Just closeWindow)
-  GLFW.setWindowRefreshCallback win Nothing
-  GLFW.setWindowSizeCallback win Nothing
-  GLFW.setKeyCallback win (Just keyPressed)
-  GLFW.setMouseButtonCallback win Nothing
-  GLFW.setScrollCallback win Nothing
+  GLFW.setWindowCloseCallback   win (Just $ closeWindow windowContainer)
+  GLFW.setWindowRefreshCallback win (Just $ drawWindow windowContainer)
+  GLFW.setWindowSizeCallback    win (Just $ resizeWindow windowContainer)
+  GLFW.setKeyCallback           win (Just $ keyCallback windowContainer)
+  GLFW.setMouseButtonCallback   win (Just $ mouseCallback windowContainer)
+  GLFW.setScrollCallback        win (Just $ scrollCallback windowContainer)
 
   -- Return window
-  return $ Window win defaultCamera vg
+  return windowContainer
 
-runWindow :: Window -> IO ()
-runWindow win =
+runWindow :: WindowContainer -> IO ()
+runWindow windowContainer = do
+  let win = getWindow windowContainer
   forever $ do
     GLFW.pollEvents
-    GLFW.swapBuffers (window win)
+    drawWindow windowContainer $ win
+    GLFW.swapBuffers win
 
-displayGLInfo :: Window -> IO Window
-displayGLInfo win = do
+displayGLInfo :: WindowContainer -> IO WindowContainer
+displayGLInfo windowContainer = do
   vendor   <- getGLString gl_VENDOR
   version  <- getGLString gl_VERSION
   renderer <- getGLString gl_RENDERER
@@ -86,5 +97,46 @@ displayGLInfo win = do
     $+$ Pretty.text "=================================================="
     )
 
-  return win
+  return windowContainer
 
+------------------------------------------------------------
+
+closeWindow windowContainer = callback
+  where
+    -- type WindowCloseCallback = Window -> IO ()
+    callback :: GLFW.WindowCloseCallback
+    callback win = GLFW.destroyWindow win >> GLFW.terminate >> exitSuccess
+
+drawWindow windowContainer = callback
+  where
+    -- type WindowRefreshCallback = Window -> IO ()
+    callback :: GLFW.WindowRefreshCallback
+    callback win = do
+      glClear $ fromIntegral $ gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT
+
+resizeWindow windowContainer = callback
+  where
+    -- type WindowSizeCallback = Window -> Int -> Int -> IO ()
+    callback :: GLFW.WindowSizeCallback
+    callback win _ _ = do
+      (w, h) <- GLFW.getFramebufferSize win
+      glViewport 0 0 (fromIntegral w) (fromIntegral h)
+
+keyCallback windowContainer = callback
+  where
+    -- type KeyCallback = Window -> Key -> Int -> KeyState -> ModifierKeys -> IO ()
+    callback :: GLFW.KeyCallback
+    callback win GLFW.Key'Escape _ GLFW.KeyState'Pressed _ = closeWindow windowContainer $ win
+    callback _   _               _ _                     _ = return ()
+
+mouseCallback windowContainer = callback
+  where
+    -- type MouseButtonCallback = Window -> MouseButton -> MouseButtonState -> ModifierKeys -> IO ()
+    callback :: GLFW.MouseButtonCallback
+    callback win _ _ _ = return ()
+
+scrollCallback windowContainer = callback
+  where
+    -- type ScrollCallback = Window -> Double -> Double -> IO ()
+    callback :: GLFW.ScrollCallback
+    callback win _ _ = return ()
