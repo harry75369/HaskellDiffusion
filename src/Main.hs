@@ -17,12 +17,16 @@ import Curve
 
 main :: IO ()
 main = do
-  Just vg <- fmap head getArgs >>= readFile >>= parseXML
-  -- print vg
-  -- debugVectorGraphics vg
-  debugOpenGL
+  let processArgsWith f []    = f Nothing
+      processArgsWith f (x:_) = readFile x >>= parseXML >>= f
 
-debugVectorGraphics vg = do
+  getArgs >>=
+    -- processArgsWith debugVectorGraphic
+    processArgsWith runOpenGL
+
+debugVectorGraphic :: Maybe VectorGraphic -> IO ()
+debugVectorGraphic Nothing  = putStrLn "Please provide a valid vector graphic file."
+debugVectorGraphic (Just vg) = do
   let curves = vgCurves vg
   let nControlPoints = length . crControlPoints
       gidRangeOfLeftColors curve =
@@ -38,9 +42,9 @@ debugVectorGraphics vg = do
             gids = map snd points
          in (minimum gids, maximum gids)
       seesee curve = (nControlPoints curve, crGlobalLen curve, gidRangeOfLeftColors curve, gidRangeOfRightColors curve, gidRangeOfBlurPoints curve, crLifeTime curve)
+
+  -- print vg
   mapM_ print $ sort $ nub $ map seesee curves
 
-debugOpenGL = do
-  win <- makeWindow 800 600 "Vector Graphics"
-  displayGLInfo win
-  runWindow win
+runOpenGL :: Maybe VectorGraphic -> IO ()
+runOpenGL vg = newWindow 800 600 "Vector Graphics" vg >>= displayGLInfo >>= runWindow

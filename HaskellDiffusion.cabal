@@ -63,6 +63,7 @@ executable HaskellDiffusion
                      , GLURaw
                      , GLFW-b
                      , pretty
+                     , JuicyPixels
 
   -- Directories containing source files.
   hs-source-dirs:      src
