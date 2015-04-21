@@ -42,8 +42,8 @@ data WindowContainer = WindowContainer
 
 ------------------------------------------------------------
 
-newWindow :: Int -> Int -> String -> Maybe VectorGraphic -> IO WindowContainer
-newWindow width height title vg = do
+newWindow :: Int -> Int -> String -> ShaderContainer -> Maybe VectorGraphic -> IO WindowContainer
+newWindow width height title shaders vg = do
   True <- GLFW.init
 
   -- Setting window hints by first resetting to defaults
@@ -57,7 +57,7 @@ newWindow width height title vg = do
   -- Create window and initilize OpenGL
   Just win <- GLFW.createWindow width height title Nothing Nothing
   GLFW.makeContextCurrent (Just win) >> displayGLInfo
-  states <- initializeGL
+  states <- initializeGL shaders
   let camera = defaultCamera
   let windowContainer = WindowContainer win states camera vg
 
@@ -127,8 +127,8 @@ scrollCallback windowContainer = callback
 
 ------------------------------------------------------------
 
-initializeGL :: IO OpenGLStates
-initializeGL = do
+initializeGL :: ShaderContainer -> IO OpenGLStates
+initializeGL shaders = do
   glEnable gl_DEPTH_TEST
   glClearColor 0.5 0.5 0.5 1.0
 
@@ -151,7 +151,7 @@ initializeGL = do
   withArray texCoords $ \ptr -> glBufferSubData gl_ARRAY_BUFFER sizeVertexPos sizeTexCoords ptr
 
   -- Load shaders
-  pid <- loadShaders $ ShaderContainer "vertex.glsl" "" "fragment.glsl"
+  pid <- loadShaders shaders
   glUseProgram pid
   vertexPosLoc <- liftM fromIntegral (withCString "vertexPos" $ \ptr -> glGetAttribLocation pid ptr)
   texCoordsLoc <- liftM fromIntegral (withCString "texCoords" $ \ptr -> glGetAttribLocation pid ptr)

@@ -64,6 +64,7 @@ executable HaskellDiffusion
                      , GLFW-b
                      , pretty
                      , JuicyPixels
+                     , optparse-applicative
 
   -- Directories containing source files.
   hs-source-dirs:      src
