@@ -1,7 +1,6 @@
 module OpenGL.Window
 ( newWindow
 , runWindow
-, displayGLInfo
 ) where
 
 ------------------------------------------------------------
@@ -11,13 +10,15 @@ import           Graphics.Rendering.GLU.Raw
 import qualified Graphics.UI.GLFW as GLFW
 import qualified Codec.Picture as J
 
-import           Control.Monad (forever)
+import           Control.Monad (forever, liftM)
 import           System.Exit (exitSuccess)
-import qualified Text.PrettyPrint as Pretty
-import           Text.PrettyPrint (($+$), (<+>))
 import           Data.Bits ((.|.))
+import           Foreign.Marshal.Array (withArray)
+import           Foreign.Ptr (Ptr(..), nullPtr, plusPtr)
+import           Foreign.C.String (withCString)
 
 import OpenGL.Utility
+import OpenGL.Shader
 import OpenGL.Camera
 import VectorGraphic
 
@@ -26,6 +27,8 @@ import VectorGraphic
 data OpenGLStates = OpenGLStates
   { getVao :: GLuint
   , getVbo :: GLuint
+  , getPid :: GLuint
+  , getNVertices :: GLsizei
   }
   deriving (Show)
 
@@ -53,7 +56,7 @@ newWindow width height title vg = do
 
   -- Create window and initilize OpenGL
   Just win <- GLFW.createWindow width height title Nothing Nothing
-  GLFW.makeContextCurrent (Just win)
+  GLFW.makeContextCurrent (Just win) >> displayGLInfo
   states <- initializeGL
   let camera = defaultCamera
   let windowContainer = WindowContainer win states camera vg
@@ -74,28 +77,8 @@ runWindow windowContainer = do
   let win = getWindow windowContainer
   forever $ do
     GLFW.pollEvents
-    drawWindow windowContainer $ win
+    drawWindow windowContainer win
     GLFW.swapBuffers win
-
-displayGLInfo :: WindowContainer -> IO WindowContainer
-displayGLInfo windowContainer = do
-  vendor   <- getGLString gl_VENDOR
-  version  <- getGLString gl_VERSION
-  renderer <- getGLString gl_RENDERER
-  samples      <- getGLInteger gl_SAMPLES
-  texture_size <- getGLInteger gl_MAX_TEXTURE_SIZE
-
-  putStrLn $ Pretty.render $ Pretty.nest 0 (
-        Pretty.text "=================================================="
-    $+$ Pretty.text "Vendor:      " <+> Pretty.text vendor
-    $+$ Pretty.text "Version:     " <+> Pretty.text version
-    $+$ Pretty.text "Renderer:    " <+> Pretty.text renderer
-    $+$ Pretty.text "Samples:     " <+> (Pretty.text . show) samples
-    $+$ Pretty.text "Texture Size:" <+> (Pretty.text . show) texture_size
-    $+$ Pretty.text "=================================================="
-    )
-
-  return windowContainer
 
 ------------------------------------------------------------
 
@@ -107,10 +90,13 @@ closeWindow windowContainer = callback
 
 drawWindow windowContainer = callback
   where
+    nVertices = getNVertices $ getStates windowContainer
+
     -- type WindowRefreshCallback = Window -> IO ()
     callback :: GLFW.WindowRefreshCallback
     callback win = do
       glClear $ fromIntegral $ gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT
+      glDrawArrays gl_TRIANGLES 0 nVertices
 
 resizeWindow windowContainer = callback
   where
@@ -118,13 +104,13 @@ resizeWindow windowContainer = callback
     callback :: GLFW.WindowSizeCallback
     callback win _ _ = do
       (w, h) <- GLFW.getFramebufferSize win
-      glViewport 0 0 (fromIntegral w) (fromIntegral h)
+      glViewport 0 0 (fromIntegral w) (fromIntegral h) >> glFlush
 
 keyCallback windowContainer = callback
   where
     -- type KeyCallback = Window -> Key -> Int -> KeyState -> ModifierKeys -> IO ()
     callback :: GLFW.KeyCallback
-    callback win GLFW.Key'Escape _ GLFW.KeyState'Pressed _ = closeWindow windowContainer $ win
+    callback win GLFW.Key'Escape _ GLFW.KeyState'Pressed _ = closeWindow windowContainer win
     callback _   _               _ _                     _ = return ()
 
 mouseCallback windowContainer = callback
@@ -154,4 +140,27 @@ initializeGL = do
   [vbo] <- getGLGen glGenBuffers 1
   glBindBuffer gl_ARRAY_BUFFER vbo
 
-  return $ OpenGLStates vao vbo
+  -- Initialize screen quad
+  let nVertices = 6 :: GLsizei
+      vertexPos = [-1, -1, -1, 1, 1, -1, -1, 1, 1, -1, 1, 1] :: [GLfloat]
+      texCoords = [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1] :: [GLfloat]
+      sizeVertexPos = fromIntegral $ sizeOf vertexPos
+      sizeTexCoords = fromIntegral $ sizeOf texCoords
+  glBufferData gl_ARRAY_BUFFER (sizeVertexPos + sizeTexCoords) nullPtr gl_STATIC_DRAW
+  withArray vertexPos $ \ptr -> glBufferSubData gl_ARRAY_BUFFER 0 sizeVertexPos ptr
+  withArray texCoords $ \ptr -> glBufferSubData gl_ARRAY_BUFFER sizeVertexPos sizeTexCoords ptr
+
+  -- Load shaders
+  pid <- loadShaders $ ShaderContainer "vertex.glsl" "" "fragment.glsl"
+  glUseProgram pid
+  vertexPosLoc <- liftM fromIntegral (withCString "vertexPos" $ \ptr -> glGetAttribLocation pid ptr)
+  texCoordsLoc <- liftM fromIntegral (withCString "texCoords" $ \ptr -> glGetAttribLocation pid ptr)
+
+  -- Setup vertex attributes
+  glVertexAttribPointer vertexPosLoc 2 gl_FLOAT (fromIntegral gl_FALSE) 0 nullPtr
+  glVertexAttribPointer texCoordsLoc 2 gl_FLOAT (fromIntegral gl_FALSE) 0 (plusPtr nullPtr $ fromIntegral sizeVertexPos)
+  glEnableVertexAttribArray vertexPosLoc
+  glEnableVertexAttribArray texCoordsLoc
+
+  return $ OpenGLStates vao vbo pid nVertices
+

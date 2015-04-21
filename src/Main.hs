@@ -47,4 +47,4 @@ debugVectorGraphic (Just vg) = do
   mapM_ print $ sort $ nub $ map seesee curves
 
 runOpenGL :: Maybe VectorGraphic -> IO ()
-runOpenGL vg = newWindow 800 600 "Vector Graphics" vg >>= displayGLInfo >>= runWindow
+runOpenGL vg = newWindow 800 600 "Vector Graphics" vg >>= runWindow
