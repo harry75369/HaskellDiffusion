@@ -17,12 +17,14 @@ import Curve
 
 main :: IO ()
 main = do
-  let processArgsWith f []    = f Nothing
-      processArgsWith f (x:_) = readFile x >>= parseXML >>= f
+  let processArgs []               = runOpenGL Nothing
+      processArgs ["-d", filePath] = readFile filePath >>= parseXML >>= debugVectorGraphic
+      processArgs [filePath]       = if filePath=="-d" then help
+                                     else readFile filePath >>= parseXML >>= runOpenGL
+      processArgs _                = help
+      help = putStrLn "Usage: HaskellDiffusion [filePath | -d filePath]"
 
-  getArgs >>=
-    -- processArgsWith debugVectorGraphic
-    processArgsWith runOpenGL
+  getArgs >>= processArgs
 
 debugVectorGraphic :: Maybe VectorGraphic -> IO ()
 debugVectorGraphic Nothing  = putStrLn "Please provide a valid vector graphic file."
