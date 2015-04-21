@@ -96,7 +96,7 @@ drawWindow windowContainer = callback
     callback :: GLFW.WindowRefreshCallback
     callback win = do
       glClear $ fromIntegral $ gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT
-      glDrawArrays gl_TRIANGLES 0 nVertices
+      glDrawArrays gl_TRIANGLE_STRIP 0 nVertices
 
 resizeWindow windowContainer = callback
   where
@@ -141,9 +141,9 @@ initializeGL = do
   glBindBuffer gl_ARRAY_BUFFER vbo
 
   -- Initialize screen quad
-  let nVertices = 6 :: GLsizei
-      vertexPos = [-1, -1, -1, 1, 1, -1, -1, 1, 1, -1, 1, 1] :: [GLfloat]
-      texCoords = [0, 0, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1] :: [GLfloat]
+  let nVertices = 4 :: GLsizei
+      vertexPos = [-1, -1, -1, 1, 1, -1, 1, 1] :: [GLfloat]
+      texCoords = [0, 0, 0, 1, 1, 0, 1, 1] :: [GLfloat]
       sizeVertexPos = fromIntegral $ sizeOf vertexPos
       sizeTexCoords = fromIntegral $ sizeOf texCoords
   glBufferData gl_ARRAY_BUFFER (sizeVertexPos + sizeTexCoords) nullPtr gl_STATIC_DRAW
