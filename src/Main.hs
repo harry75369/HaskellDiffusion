@@ -30,9 +30,9 @@ args :: Parser Args
 args = Args
   <$> strArgument (value "" <> metavar "Vector graphic file")
   <*> switch (short 'd' <> long "debug" <> help "Enable debug")
-  <*> strOption (short 'v' <> long "vertex" <> help "Vertex shader file" <> value "vertex.glsl" <> metavar "FILE")
+  <*> strOption (short 'v' <> long "vertex" <> help "Vertex shader file" <> value "shaders/vertex.glsl" <> metavar "FILE")
   <*> strOption (short 'g' <> long "geometry" <> help "Geometry shader file" <> value "" <> metavar "FILE")
-  <*> strOption (short 'f' <> long "fragment" <> help "Fragment shader file" <> value "fragment.glsl" <> metavar "FILE")
+  <*> strOption (short 'f' <> long "fragment" <> help "Fragment shader file" <> value "shaders/fragment.glsl" <> metavar "FILE")
 
 ------------------------------------------------------------
 

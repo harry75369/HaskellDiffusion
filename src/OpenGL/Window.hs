@@ -16,6 +16,8 @@ import           Data.Bits ((.|.))
 import           Foreign.Marshal.Array (withArray)
 import           Foreign.Ptr (Ptr(..), nullPtr, plusPtr)
 import           Foreign.C.String (withCString)
+import           Data.StateVar
+import           Data.IORef
 
 import OpenGL.Utility
 import OpenGL.Shader
@@ -29,8 +31,9 @@ data OpenGLStates = OpenGLStates
   , getVbo :: GLuint
   , getPid :: GLuint
   , getNVertices :: GLsizei
+  , getUniforms  :: [GLint]
+  , globalTime   :: IORef GLfloat
   }
-  deriving (Show)
 
 data WindowContainer = WindowContainer
   { getWindow :: GLFW.Window
@@ -38,7 +41,6 @@ data WindowContainer = WindowContainer
   , getCamera :: Camera
   , getVecimg :: Maybe VectorGraphic
   }
-  deriving (Show)
 
 ------------------------------------------------------------
 
@@ -90,12 +92,25 @@ closeWindow windowContainer = callback
 
 drawWindow windowContainer = callback
   where
-    nVertices = getNVertices $ getStates windowContainer
+    states    = getStates windowContainer
+    nVertices = getNVertices states
+    uniforms  = getUniforms  states
+    gTime     = globalTime   states
+    sendUniforms [] _ _ _ = return ()
+    sendUniforms [resolutionLoc, globalTimeLoc] w h t = do
+      glUniform1f globalTimeLoc t
+      glUniform2f resolutionLoc w h
 
     -- type WindowRefreshCallback = Window -> IO ()
     callback :: GLFW.WindowRefreshCallback
     callback win = do
       glClear $ fromIntegral $ gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT
+
+      (w, h) <- GLFW.getFramebufferSize win
+      t <- get gTime
+      print t
+      sendUniforms uniforms (fromIntegral w) (fromIntegral h) t
+      gTime $~ (+0.1)
       glDrawArrays gl_TRIANGLE_STRIP 0 nVertices
 
 resizeWindow windowContainer = callback
@@ -162,5 +177,16 @@ initializeGL shaders = do
   glEnableVertexAttribArray vertexPosLoc
   glEnableVertexAttribArray texCoordsLoc
 
-  return $ OpenGLStates vao vbo pid nVertices
+  -- Setup uniforms
+  let setupUniforms "flames.frag" = do
+        resolutionLoc <- withCString "iResolution" $ \ptr -> glGetUniformLocation pid ptr
+        globalTimeLoc <- withCString "iGlobalTime" $ \ptr -> glGetUniformLocation pid ptr
+        return [resolutionLoc, globalTimeLoc]
+      setupUniforms _             = return []
+  uniforms <- setupUniforms $ fragmentShaderPath shaders
+
+  -- Init global time
+  time <- newIORef 0
+
+  return $ OpenGLStates vao vbo pid nVertices uniforms time
 
