@@ -66,6 +66,7 @@ executable HaskellDiffusion
                      , JuicyPixels
                      , optparse-applicative
                      , StateVar
+                     , filepath
 
   -- Directories containing source files.
   hs-source-dirs:      src

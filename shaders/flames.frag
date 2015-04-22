@@ -3,6 +3,8 @@
 uniform vec2 iResolution; // viewport resolution (in pixels)
 uniform float iGlobalTime;// shader playback time (in seconds)
 
+out vec4 fColor;
+
 float noise(vec3 p) //Thx to Las^Mercury
 {
   vec3 i = floor(p);
@@ -63,6 +65,9 @@ void main()
 
   vec4 col = mix(vec4(1.,.5,.1,1.), vec4(0.1,.5,1.,1.), p.y*.02+.4);
 
-  gl_FragColor = mix(vec4(0.), col, pow(glow*2.,4.));
+  //gl_FragColor = mix(vec4(0.), col, pow(glow*2.,4.));
   //gl_FragColor = mix(vec4(1.), mix(vec4(1.,.5,.1,1.),vec4(0.1,.5,1.,1.),p.y*.02+.4), pow(glow*2.,4.));
+
+  // gl_FragColor is deprecated
+  fColor = mix(vec4(0.), col, pow(glow*2.,4.));
 }

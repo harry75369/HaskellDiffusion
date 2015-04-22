@@ -12,6 +12,7 @@ import qualified Codec.Picture as J
 
 import           Control.Monad (forever, liftM)
 import           System.Exit (exitSuccess)
+import           System.FilePath (takeFileName)
 import           Data.Bits ((.|.))
 import           Foreign.Marshal.Array (withArray)
 import           Foreign.Ptr (Ptr(..), nullPtr, plusPtr)
@@ -108,7 +109,6 @@ drawWindow windowContainer = callback
 
       (w, h) <- GLFW.getFramebufferSize win
       t <- get gTime
-      print t
       sendUniforms uniforms (fromIntegral w) (fromIntegral h) t
       gTime $~ (+0.1)
       glDrawArrays gl_TRIANGLE_STRIP 0 nVertices
@@ -183,7 +183,7 @@ initializeGL shaders = do
         globalTimeLoc <- withCString "iGlobalTime" $ \ptr -> glGetUniformLocation pid ptr
         return [resolutionLoc, globalTimeLoc]
       setupUniforms _             = return []
-  uniforms <- setupUniforms $ fragmentShaderPath shaders
+  uniforms <- setupUniforms $ takeFileName $ fragmentShaderPath shaders
 
   -- Init global time
   time <- newIORef 0
