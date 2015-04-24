@@ -8,6 +8,8 @@ import Control.Monad (mapM_)
 import Data.List (sort, nub)
 import System.Environment (getArgs)
 import Options.Applicative
+import System.TimeIt (timeItT)
+import Text.Printf
 
 import Parsers.XMLParser (parseXML)
 import OpenGL.Window
@@ -40,9 +42,12 @@ main :: IO ()
 main = execParser extraArgs >>= processArgs
   where shortDesc = "Diffusion Curves in Haskell, Chaoya Li <chaoya@chaoya.info> (C) 2015"
         extraArgs = info (helper <*> args) (fullDesc <> header shortDesc)
+        parseProfile act = do
+          (t, a) <- timeItT act
+          printf "Parsing time: %6.2fs\n" t >> return a
         processArgs (Args [] _ v g f) = runOpenGL (ShaderContainer v g f) Nothing
-        processArgs (Args fp False v g f) = readFile fp >>= parseXML >>= runOpenGL (ShaderContainer v g f)
-        processArgs (Args fp True _ _ _) = readFile fp >>= parseXML >>= debugVectorGraphic
+        processArgs (Args fp False v g f) = readFile fp >>= (parseProfile.parseXML) >>= runOpenGL (ShaderContainer v g f)
+        processArgs (Args fp True _ _ _) = readFile fp >>= (parseProfile.parseXML) >>= debugVectorGraphic
 
 debugVectorGraphic :: Maybe VectorGraphic -> IO ()
 debugVectorGraphic Nothing  = putStrLn "Please provide a valid vector graphic file."
