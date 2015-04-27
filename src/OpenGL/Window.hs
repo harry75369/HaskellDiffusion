@@ -32,7 +32,8 @@ data UniformLocations = DefaultLocations
   { getMVPMatrixLoc  :: GLint
   }
   | FlamesLocations
-  { getResolutionLoc :: GLint
+  { getMVPMatrixLoc  :: GLint
+  , getResolutionLoc :: GLint
   , getGlobalTimeLoc :: GLint
   }
   deriving (Show)
@@ -112,12 +113,14 @@ drawWindow windowContainer = callback
     globalTime = getGlobalTime . getStates $ windowContainer
     camera     = getCamera windowContainer
 
-    updateUniforms (FlamesLocations resolutionLoc globalTimeLoc) = do
+    updateUniforms (FlamesLocations mvpMatrixLoc resolutionLoc globalTimeLoc) = do
       (w, h) <- GLFW.getFramebufferSize win
       t <- get globalTime
       glUniform1f globalTimeLoc t
       glUniform2f resolutionLoc (fromIntegral w) (fromIntegral h)
       globalTime $~ (+0.1)
+      m <- getMVPMatrix camera
+      with m $ \ptr -> glUniformMatrix4fv mvpMatrixLoc 1 (fromIntegral gl_TRUE) (castPtr ptr)
 
     updateUniforms (DefaultLocations mvpMatrixLoc) = do
       m <- getMVPMatrix camera
@@ -225,7 +228,8 @@ initializeGL shaders = do
   let setupUniforms "flames.frag" = do
         resolutionLoc <- withCString "iResolution" $ \ptr -> glGetUniformLocation pid ptr
         globalTimeLoc <- withCString "iGlobalTime" $ \ptr -> glGetUniformLocation pid ptr
-        return $ FlamesLocations resolutionLoc globalTimeLoc
+        mvpMatrixLoc  <- withCString "iMVPMatrix" $ \ptr -> glGetUniformLocation pid ptr
+        return $ FlamesLocations mvpMatrixLoc resolutionLoc globalTimeLoc
       setupUniforms _             = do
         mvpMatrixLoc <- withCString "iMVPMatrix" $ \ptr -> glGetUniformLocation pid ptr
         return $ DefaultLocations mvpMatrixLoc
