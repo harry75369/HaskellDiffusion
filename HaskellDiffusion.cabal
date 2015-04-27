@@ -69,6 +69,7 @@ executable HaskellDiffusion
                      , filepath
                      , criterion
                      , timeit
+                     , linear
 
   -- Directories containing source files.
   hs-source-dirs:      src

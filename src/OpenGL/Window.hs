@@ -14,8 +14,9 @@ import           Control.Monad (forever, liftM)
 import           System.Exit (exitSuccess)
 import           System.FilePath (takeFileName)
 import           Data.Bits ((.|.))
+import           Foreign.Marshal.Utils (with)
 import           Foreign.Marshal.Array (withArray)
-import           Foreign.Ptr (Ptr(..), nullPtr, plusPtr)
+import           Foreign.Ptr (Ptr(..), nullPtr, plusPtr, castPtr)
 import           Foreign.C.String (withCString)
 import           Data.StateVar
 import           Data.IORef
@@ -27,19 +28,29 @@ import VectorGraphic
 
 ------------------------------------------------------------
 
+data UniformLocations = DefaultLocations
+  { getMVPMatrixLoc  :: GLint
+  }
+  | FlamesLocations
+  { getResolutionLoc :: GLint
+  , getGlobalTimeLoc :: GLint
+  }
+  deriving (Show)
+
 data OpenGLStates = OpenGLStates
   { getVao :: GLuint
   , getVbo :: GLuint
   , getPid :: GLuint
-  , getNVertices :: GLsizei
-  , getUniforms  :: [GLint]
-  , globalTime   :: IORef GLfloat
+  , getNVertices  :: GLsizei
+  , getULocations :: UniformLocations
+  , getGlobalTime :: IORef GLfloat
   }
 
 data WindowContainer = WindowContainer
   { getWindow :: GLFW.Window
   , getStates :: OpenGLStates
   , getCamera :: Camera
+  , getLastXY :: IORef (Double, Double)
   , getVecimg :: Maybe VectorGraphic
   }
 
@@ -61,15 +72,17 @@ newWindow width height title shaders vg = do
   Just win <- GLFW.createWindow width height title Nothing Nothing
   GLFW.makeContextCurrent (Just win) >> displayGLInfo
   states <- initializeGL shaders
-  let camera = defaultCamera
-  let windowContainer = WindowContainer win states camera vg
+  camera <- defaultCamera
+  lastXY <- newIORef (-1, -1)
+  let windowContainer = WindowContainer win states camera lastXY vg
 
   -- Setup callbacks
   GLFW.setWindowCloseCallback   win (Just $ closeWindow windowContainer)
   GLFW.setWindowRefreshCallback win (Just $ drawWindow windowContainer)
   GLFW.setWindowSizeCallback    win (Just $ resizeWindow windowContainer)
   GLFW.setKeyCallback           win (Just $ keyCallback windowContainer)
-  GLFW.setMouseButtonCallback   win (Just $ mouseCallback windowContainer)
+  GLFW.setMouseButtonCallback   win (Just $ mouseButtonCallback windowContainer)
+  GLFW.setCursorPosCallback     win (Just $ mousePosCallback windowContainer)
   GLFW.setScrollCallback        win (Just $ scrollCallback windowContainer)
 
   -- Return window
@@ -93,25 +106,28 @@ closeWindow windowContainer = callback
 
 drawWindow windowContainer = callback
   where
-    states    = getStates windowContainer
-    nVertices = getNVertices states
-    uniforms  = getUniforms  states
-    gTime     = globalTime   states
-    sendUniforms [] _ _ _ = return ()
-    sendUniforms [resolutionLoc, globalTimeLoc] w h t = do
+    win        = getWindow windowContainer
+    nVertices  = getNVertices  . getStates $ windowContainer
+    uLocations = getULocations . getStates $ windowContainer
+    globalTime = getGlobalTime . getStates $ windowContainer
+    camera     = getCamera windowContainer
+
+    updateUniforms (FlamesLocations resolutionLoc globalTimeLoc) = do
+      (w, h) <- GLFW.getFramebufferSize win
+      t <- get globalTime
       glUniform1f globalTimeLoc t
-      glUniform2f resolutionLoc w h
+      glUniform2f resolutionLoc (fromIntegral w) (fromIntegral h)
+      globalTime $~ (+0.1)
+
+    updateUniforms (DefaultLocations mvpMatrixLoc) = do
+      m <- getMVPMatrix camera
+      with m $ \ptr -> glUniformMatrix4fv mvpMatrixLoc 1 (fromIntegral gl_TRUE) (castPtr ptr)
 
     -- type WindowRefreshCallback = Window -> IO ()
     callback :: GLFW.WindowRefreshCallback
     callback win = do
       glClear $ fromIntegral $ gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT
-
-      (w, h) <- GLFW.getFramebufferSize win
-      t <- get gTime
-      sendUniforms uniforms (fromIntegral w) (fromIntegral h) t
-      gTime $~ (+0.1)
-      glDrawArrays gl_TRIANGLE_STRIP 0 nVertices
+      updateUniforms uLocations >> glDrawArrays gl_TRIANGLE_STRIP 0 nVertices
 
 resizeWindow windowContainer = callback
   where
@@ -128,17 +144,45 @@ keyCallback windowContainer = callback
     callback win GLFW.Key'Escape _ GLFW.KeyState'Pressed _ = closeWindow windowContainer win
     callback _   _               _ _                     _ = return ()
 
-mouseCallback windowContainer = callback
+mouseButtonCallback windowContainer = callback
   where
+    lastXY = getLastXY windowContainer
+
     -- type MouseButtonCallback = Window -> MouseButton -> MouseButtonState -> ModifierKeys -> IO ()
+    {- From GLFW source code:
+    #define GLFW_MOUSE_BUTTON_LAST   GLFW_MOUSE_BUTTON_8
+    #define GLFW_MOUSE_BUTTON_LEFT   GLFW_MOUSE_BUTTON_1
+    #define GLFW_MOUSE_BUTTON_RIGHT  GLFW_MOUSE_BUTTON_2
+    #define GLFW_MOUSE_BUTTON_MIDDLE GLFW_MOUSE_BUTTON_3
+    -}
     callback :: GLFW.MouseButtonCallback
-    callback win _ _ _ = return ()
+    callback win GLFW.MouseButton'1 GLFW.MouseButtonState'Pressed  _ = GLFW.getCursorPos win >>= ($=) lastXY
+    callback win GLFW.MouseButton'1 GLFW.MouseButtonState'Released _ = lastXY $= (-1, -1)
+
+mousePosCallback windowContainer = callback
+  where
+    camera = getCamera windowContainer
+    lastXY = getLastXY windowContainer
+    cvt = fromRational . toRational
+
+    -- type CursorPosCallback = Window -> Double -> Double -> IO ()
+    callback :: GLFW.CursorPosCallback
+    callback win x y = do
+      (w, h) <- GLFW.getFramebufferSize win
+      xy <- get lastXY
+      case xy of
+        (-1, -1) -> return ()
+        (lastX, lastY) -> do
+          transCamera camera (cvt $ (x - lastX)/(fromIntegral w), cvt $ (y - lastY)/(fromIntegral h))
+          lastXY $= (x, y)
 
 scrollCallback windowContainer = callback
   where
+    camera = getCamera windowContainer
+
     -- type ScrollCallback = Window -> Double -> Double -> IO ()
     callback :: GLFW.ScrollCallback
-    callback win _ _ = return ()
+    callback win x y = scaleCamera camera $ if y > 0 then 1.25 else 0.8
 
 ------------------------------------------------------------
 
@@ -181,12 +225,14 @@ initializeGL shaders = do
   let setupUniforms "flames.frag" = do
         resolutionLoc <- withCString "iResolution" $ \ptr -> glGetUniformLocation pid ptr
         globalTimeLoc <- withCString "iGlobalTime" $ \ptr -> glGetUniformLocation pid ptr
-        return [resolutionLoc, globalTimeLoc]
-      setupUniforms _             = return []
-  uniforms <- setupUniforms $ takeFileName $ fragmentShaderPath shaders
+        return $ FlamesLocations resolutionLoc globalTimeLoc
+      setupUniforms _             = do
+        mvpMatrixLoc <- withCString "iMVPMatrix" $ \ptr -> glGetUniformLocation pid ptr
+        return $ DefaultLocations mvpMatrixLoc
+  uLocations <- setupUniforms $ takeFileName $ fragmentShaderPath shaders
 
   -- Init global time
-  time <- newIORef 0
+  globalTime <- newIORef 0
 
-  return $ OpenGLStates vao vbo pid nVertices uniforms time
+  return $ OpenGLStates vao vbo pid nVertices uLocations globalTime
 
