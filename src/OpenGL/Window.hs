@@ -101,9 +101,18 @@ runWindow windowContainer = do
 
 closeWindow windowContainer = callback
   where
+    vao = getVao . getStates $ windowContainer
+    vbo = getVbo . getStates $ windowContainer
+    pid = getPid . getStates $ windowContainer
+
     -- type WindowCloseCallback = Window -> IO ()
     callback :: GLFW.WindowCloseCallback
-    callback win = GLFW.destroyWindow win >> GLFW.terminate >> exitSuccess
+    callback win = do
+      GLFW.destroyWindow win >> GLFW.terminate
+      glDeleteProgram pid
+      with vbo $ \ptr -> glDeleteVertexArrays 1 ptr
+      with vao $ \ptr -> glDeleteBuffers 1 ptr
+      exitSuccess
 
 drawWindow windowContainer = callback
   where

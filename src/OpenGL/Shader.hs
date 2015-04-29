@@ -39,8 +39,10 @@ loadShaders (ShaderContainer vp gp fp) = do
         return shaderID
 
       attachShader _ _ [] = return ()
-      attachShader programID shaderType path =
-        compileShader shaderType path >>= glAttachShader programID
+      attachShader programID shaderType path = do
+        shaderID <- compileShader shaderType path
+        glAttachShader programID shaderID
+        glDeleteShader shaderID
 
   -- Create program and attach shaders
   programID <- glCreateProgram
