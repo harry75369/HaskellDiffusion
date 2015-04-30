@@ -47,29 +47,31 @@ main = execParser extraArgs >>= processArgs
           printf "Parsing time: %6.2fs\n" t >> return a
         processArgs (Args [] _ v g f) = runOpenGL (ShaderContainer v g f) Nothing
         processArgs (Args fp False v g f) = readFile fp >>= (parseProfile.parseXML) >>= runOpenGL (ShaderContainer v g f)
-        processArgs (Args fp True _ _ _) = readFile fp >>= (parseProfile.parseXML) >>= debugVectorGraphic
+        processArgs (Args fp True _ _ _) = readFile fp >>= (parseProfile.parseXML) >>= debugVectorGraphic fp
 
-debugVectorGraphic :: Maybe VectorGraphic -> IO ()
-debugVectorGraphic Nothing  = putStrLn "Please provide a valid vector graphic file."
-debugVectorGraphic (Just vg) = do
+debugVectorGraphic :: FilePath -> Maybe VectorGraphic -> IO ()
+debugVectorGraphic _ Nothing  = putStrLn "Please provide a valid vector graphic file."
+debugVectorGraphic filepath (Just vg) = do
   let curves = vgCurves vg
-  let nControlPoints = length . crControlPoints
-      gidRangeOfLeftColors curve =
-        let colors = crLeftColors curve
-            gids = map (\(_,_,_,gid)->gid) colors
-         in (minimum gids, maximum gids)
-      gidRangeOfRightColors curve =
-        let colors = crRightColors curve
-            gids = map (\(_,_,_,gid)->gid) colors
-         in (minimum gids, maximum gids)
-      gidRangeOfBlurPoints curve =
-        let points = crBlurPoints curve
-            gids = map snd points
-         in (minimum gids, maximum gids)
-      seesee curve = (nControlPoints curve, crGlobalLen curve, gidRangeOfLeftColors curve, gidRangeOfRightColors curve, gidRangeOfBlurPoints curve, crLifeTime curve)
+      width  = vgWidth  vg
+      height = vgHeight vg
+      seesee curve = (crGlobalLen curve
+                     ,crLifeTime curve
+                     ,length . crControlPoints $ curve
+                     ,getCurveLeftColorGidRange curve
+                     ,getCurveRightColorGidRange curve
+                     ,getCurveBlurPointGidRange curve)
+      (xMin, yMin, xMax, yMax) = getVGBoundingBox vg
+      nTotalCPs = foldl (\n curve -> n + (length.crControlPoints $ curve)) 0 curves
 
+  printf "File: %s\n" filepath
   -- print vg
-  mapM_ print $ sort $ nub $ map seesee curves
+  printf "Size: (%d, %d)\n" width height
+  printf "Number of curves: %d\n" (length curves)
+  printf "Number of total control points: %d\n" nTotalCPs
+  printf "Bounding box: (%.2f, %.2f, %.2f, %.2f)\n" xMin yMin xMax yMax
+  -- mapM_ print $ sort $ nub $ map seesee curves
 
 runOpenGL :: ShaderContainer -> Maybe VectorGraphic -> IO ()
 runOpenGL shaders vg = newWindow 800 600 "Vector Graphics" shaders vg >>= runWindow
+
