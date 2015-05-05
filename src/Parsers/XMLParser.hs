@@ -1,5 +1,6 @@
 module Parsers.XMLParser
 ( parseXML
+, parseXMLFile
 ) where
 
 ------------------------------------------------------------
@@ -7,6 +8,8 @@ module Parsers.XMLParser
 import qualified Text.Parsec            as P
 import qualified Parsers.ParserElements as E
 import           Control.Monad (forM)
+import           Data.Complex
+import           Data.Color
 import           VectorGraphic
 import           Curve
 
@@ -14,11 +17,13 @@ import           Curve
 
 p_xml = do
   let p_color = do
-        g <- E.lexstr "G=" >> E.quotes E.integer
-        r <- E.lexstr "R=" >> E.quotes E.integer
+        let clamp f = max 0 (min 1 f)
+        let normalize i = clamp $ (fromIntegral i) / 255.0
+        g <- fmap normalize $ E.lexstr "G=" >> E.quotes E.integer
+        r <- fmap normalize $ E.lexstr "R=" >> E.quotes E.integer
         gid <- E.lexstr "globalID=" >> E.quotes E.integer
-        b <- E.lexstr "B=" >> E.quotes E.integer
-        return (fromIntegral r,fromIntegral g,fromIntegral b,fromIntegral gid)
+        b <- fmap normalize $ E.lexstr "B=" >> E.quotes E.integer
+        return (Color r g b, fromIntegral gid)
 
   -- XML header
   E.lexstr "<!DOCTYPE CurveSetXML>"
@@ -51,7 +56,7 @@ p_xml = do
       P.between (E.lexstr "<control_point") (E.lexstr "/>") $ do
         x <- E.lexstr "x=" >> E.quotes E.float
         y <- E.lexstr "y=" >> E.quotes E.float
-        return (x,y)
+        return (x :+ y)
     E.lexstr "</control_points_set>"
 
     -- Left colors
@@ -70,19 +75,25 @@ p_xml = do
     E.lexstr "<blur_points_set>"
     blur_points <- forM [1..n_bp] $ \j ->
       P.between (E.lexstr "<best_scale") (E.lexstr "/>") $ do
-        v <- E.lexstr "value=" >> E.quotes E.integer
+        v <- E.lexstr "value=" >> E.quotes E.float
         gid <- E.lexstr "globalID=" >> E.quotes E.integer
-        return (fromIntegral v,fromIntegral gid)
+        return (v,fromIntegral gid)
     E.lexstr "</blur_points_set>"
 
     E.lexstr "</curve>"
     return $ Curve global_len life_time control_points left_colors right_colors blur_points
 
   E.lexstr "</curve_set>"
-  return $ VectorGraphic width height curves
+  return $ VectorGraphic width height curves ""
 
 parseXML :: String -> IO (Maybe VectorGraphic)
 parseXML s = case P.parse p_xml "XML" s of
   Left err -> print err >> return Nothing
   Right vg -> return $ Just vg
 
+parseXMLFile :: FilePath -> IO (Maybe VectorGraphic)
+parseXMLFile fp = do
+  mvg <- readFile fp >>= parseXML
+  case mvg of
+    Nothing -> return Nothing
+    Just (VectorGraphic w h c _) -> return $ Just (VectorGraphic w h c fp)
