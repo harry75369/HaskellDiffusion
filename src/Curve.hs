@@ -64,20 +64,32 @@ discretizeCurve curve unitSize = do
 
   let piecewizeColors []       = []
       piecewizeColors [x]      = []
+      piecewizeColors (x:y:[]) =
+        let (c0, i0) = x
+            (c1, i1) = y
+            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
+            blend t = fmap (*(1-t)) c0 + fmap (*t) c1
+         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0]]
       piecewizeColors (x:y:xs) =
         let (c0, i0) = x
             (c1, i1) = y
             len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
             blend t = fmap (*(1-t)) c0 + fmap (*t) c1
-         in [blend (fromIntegral i)/len | i <- [0..i1-i0]] ++ piecewizeColors (y:xs)
+         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0-1]] ++ piecewizeColors (y:xs)
       piecewizeBlurs []       = []
       piecewizeBlurs [x]      = []
+      piecewizeBlurs (x:y:[]) =
+        let (b0, i0) = x
+            (b1, i1) = y
+            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
+            blend t = (1-t) * b0 + t * b1
+         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0]]
       piecewizeBlurs (x:y:xs) =
         let (b0, i0) = x
             (b1, i1) = y
             len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
             blend t = (1-t) * b0 + t * b1
-         in [blend (fromIntegral i)/len | i <- [0..i1-i0]] ++ piecewizeBlurs (y:xs)
+         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0-1]] ++ piecewizeBlurs (y:xs)
       piecewizePoints []           = []
       piecewizePoints [x]          = []
       piecewizePoints [x,y]        = []
@@ -106,7 +118,10 @@ discretizeCurve curve unitSize = do
         seg <- makeLineSegment p0 p1 c b
         segs <- merge (lc1:lcs) (rc1:rcs) (b1:bs) (p1:ps)
         return $ seg : segs
-      merge _ _ _ _  = putStrLn "[WARN] unmatched line segments properties" >> return []
+      merge l r b p  = do
+        putStrLn "[WARN] unmatched line segments properties"
+        print l >> print r >> print b >> print p
+        return []
 
   merge leftPiecewiseColors rightPiecewiseColors piecewiseBlurs piecewisePoints
 
