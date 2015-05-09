@@ -4,7 +4,7 @@ module Main
 
 ------------------------------------------------------------
 
-import Control.Monad (mapM_)
+import Control.Monad (mapM_, foldM)
 import Data.List (sort, nub)
 import System.Environment (getArgs)
 import Options.Applicative
@@ -76,18 +76,20 @@ debugVectorGraphic (Just vg) = do
   printf "Bounding box: (%.2f, %.2f, %.2f, %.2f)\n" xMin yMin xMax yMax
   mapM_ print $ sort $ nub $ map seesee curves
 
-  preprocessVectorGraphic vg
+  segs <- preprocessVectorGraphic vg
+  writeVectorGraphicSegmentsPNG "segments" vg segs
 
-debugSegment :: Double -> LineSegment -> IO ()
-debugSegment unitSize (LineSegment (sx:+sy) (ex:+ey) _ l _ _ _ _ _) = do
+debugSegment :: Double -> LineSegment -> IO Int
+debugSegment unitSize (LineSegment (sx:+sy) (ex:+ey) _ l _ _ _ _ _ _) = do
   let si = (floor $ sx / unitSize) :: Int
       sj = (floor $ sy / unitSize) :: Int
       ei = (floor $ ex / unitSize) :: Int
       ej = (floor $ ey / unitSize) :: Int
       flag = (if (si==ei && sj==ej) then 1 else 0) :: Int
   printf "(%.2f,%.2f) -> (%.2f,%.2f), len = %.2f, (%d,%d) -> (%d,%d), %d\n" sx sy ex ey l si sj ei ej flag
+  return flag
 
-preprocessVectorGraphic :: VectorGraphic -> IO ()
+preprocessVectorGraphic :: VectorGraphic -> IO [LineSegment]
 preprocessVectorGraphic vg = do
   let solver = initFMSolver (vgWidth vg) (vgHeight vg) 10 4
       unitSize = getUnitSize solver
@@ -95,7 +97,12 @@ preprocessVectorGraphic vg = do
   printf "Unit size: %.2f\n" unitSize
   segments <- getDiscretizedSegments vg solver
   printf "Number of line segments: %d\n" (length segments)
-  mapM_ (debugSegment unitSize) segments
+  nValids <- foldM (\accum seg -> do
+        flag <- debugSegment unitSize seg
+        return $ accum+flag) 0 segments
+  printf "Percentage of valid segment: %.2f\n" $ ((fromIntegral nValids)/(fromIntegral $ length segments) :: Double)
+
+  return segments
 
 runOpenGL :: ShaderContainer -> Maybe VectorGraphic -> IO ()
 runOpenGL shaders Nothing = newWindow 800 600 "Vector Graphics" shaders Nothing >>= runWindow

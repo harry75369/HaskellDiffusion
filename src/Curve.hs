@@ -4,7 +4,8 @@ module Curve
 , getCurveLeftColorGidRange
 , getCurveRightColorGidRange
 , getCurveBlurPointGidRange
-, discretizeCurve
+, discretizeCurveUniform
+, discretizeCurveLattice
 ) where
 
 ------------------------------------------------------------
@@ -12,6 +13,7 @@ module Curve
 import Data.Complex
 import Data.Color
 import LineSegment
+import Text.Printf
 
 ------------------------------------------------------------
 
@@ -44,52 +46,55 @@ getCurveRightColorGidRange (Curve _ _ _ _ rcs _) = (minimum gids, maximum gids)
 getCurveBlurPointGidRange (Curve _ _ _ _ _ bps) = (minimum gids, maximum gids)
   where gids = map snd bps
 
--- | Discretize the curve into small line segments so that every segment is wholly contained in a unit square.
+-- | Discretize the curve uniformly into small line segments according to dt.
 --
--- Note in the orignal curve representation
 -- 1) curve is composed of cubic bezier splines, where every four control points make up a spline, and the
 --    first and the forth control points lie on the curve, and the forth control point is shared with next spline.
--- 2) every cubic spline is assumed to be discretized into 10 line segments.
+-- 2) every cubic spline is assumed to be equally divided into 1/dt line segments.
 -- 3) colors and blurs is indexed by the offset from the start point of the first segment of the first cubic spline.
 -- 4) the offset (i.e. global id) ranges from 0 to 10*(N-1)/3, where N is the number of control points.
 -- 5) colors and blurs is already sorted by the ascending order of the global id.
 --
-discretizeCurve :: Curve -> Double -> IO [LineSegment]
-discretizeCurve curve unitSize = do
+discretizeCurveUniform :: Curve -> Double -> IO [LineSegment]
+discretizeCurveUniform curve dt = do
   let controlPoints = crControlPoints curve
       leftColors    = crLeftColors curve
       rightColors   = crRightColors curve
       blurPoints    = crBlurPoints curve
-      dt = 0.1
+  if dt > 0 && dt <= 1.0
+     then printf "Discretization dt: %.6f\n" dt
+     else error  "Invalid dt"
 
+
+  let s = 0.1 / dt
   let piecewizeColors []       = []
       piecewizeColors [x]      = []
       piecewizeColors (x:y:[]) =
         let (c0, i0) = x
             (c1, i1) = y
-            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
+            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)*s
             blend t = fmap (*(1-t)) c0 + fmap (*t) c1
-         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0]]
+         in [blend $ i/len | i <- [0..len]]
       piecewizeColors (x:y:xs) =
         let (c0, i0) = x
             (c1, i1) = y
-            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
+            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)*s
             blend t = fmap (*(1-t)) c0 + fmap (*t) c1
-         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0-1]] ++ piecewizeColors (y:xs)
+         in [blend $ i/len | i <- [0..len-1]] ++ piecewizeColors (y:xs)
       piecewizeBlurs []       = []
       piecewizeBlurs [x]      = []
       piecewizeBlurs (x:y:[]) =
         let (b0, i0) = x
             (b1, i1) = y
-            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
+            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)*s
             blend t = (1-t) * b0 + t * b1
-         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0]]
+         in [blend $ i/len | i <- [0..len]]
       piecewizeBlurs (x:y:xs) =
         let (b0, i0) = x
             (b1, i1) = y
-            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)
+            len = if i0 >= i1 then 1.0 else (fromIntegral $ i1-i0)*s
             blend t = (1-t) * b0 + t * b1
-         in [blend $ (fromIntegral i)/len | i <- [0..i1-i0-1]] ++ piecewizeBlurs (y:xs)
+         in [blend $ i/len | i <- [0..len-1]] ++ piecewizeBlurs (y:xs)
       piecewizePoints []           = []
       piecewizePoints [x]          = []
       piecewizePoints [x,y]        = []
@@ -97,11 +102,11 @@ discretizeCurve curve unitSize = do
       piecewizePoints (x:y:z:w:[]) = [(fromRational $ (1-t)*(1-t)*(1-t)) * x
                                      +(fromRational $ 3*t*(1-t)*(1-t)) * y
                                      +(fromRational $ 3*t*t*(1-t)) * z
-                                     +(fromRational $ t*t*t) * w | t <- [0,dt..1.0]]
+                                     +(fromRational $ t*t*t) * w | t <- [0,(toRational dt)..1.0]]
       piecewizePoints (x:y:z:w:xs) = [(fromRational $ (1-t)*(1-t)*(1-t)) * x
                                      +(fromRational $ 3*t*(1-t)*(1-t)) * y
                                      +(fromRational $ 3*t*t*(1-t)) * z
-                                     +(fromRational $ t*t*t) * w | t <- [0,dt..1.0-dt]] ++ piecewizePoints (w:xs)
+                                     +(fromRational $ t*t*t) * w | t <- [0,(toRational dt)..(toRational $ 1.0-dt)]] ++ piecewizePoints (w:xs)
 
   let leftPiecewiseColors  = piecewizeColors leftColors
       rightPiecewiseColors = piecewizeColors rightColors
@@ -113,9 +118,11 @@ discretizeCurve curve unitSize = do
       merge (lc0:lc1:lcs) (rc0:rc1:rcs) (b0:b1:bs) (p0:p1:ps) = do
         let lc = fmap (/2) (lc0+lc1)
             rc = fmap (/2) (rc0+rc1)
+            dc = zipColor lc rc
             c  = fmap (fromRational.toRational) (lc-rc) :: Color (Complex Double)
             b  = (b0+b1) / 2 :: Double
-        seg <- makeLineSegment p0 p1 c b
+            zipColor (Color r0 g0 b0) (Color r1 g1 b1) = Color (r0:+r1) (g0:+g1) (b0:+b1)
+        seg <- makeLineSegment p0 p1 dc c b
         segs <- merge (lc1:lcs) (rc1:rcs) (b1:bs) (p1:ps)
         return $ seg : segs
       merge l r b p  = do
@@ -125,3 +132,4 @@ discretizeCurve curve unitSize = do
 
   merge leftPiecewiseColors rightPiecewiseColors piecewiseBlurs piecewisePoints
 
+discretizeCurveLattice = undefined
