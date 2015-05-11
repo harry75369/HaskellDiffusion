@@ -19,6 +19,7 @@ import VectorGraphic
 import Curve
 import LineSegment
 import FastMultipoleSolver
+import BoundaryElementSolver
 
 ------------------------------------------------------------
 
@@ -64,12 +65,14 @@ main = execParser extraArgs >>= processArgs
 
 runOpenGL :: ShaderContainer -> (Maybe VectorGraphic, Maybe FastMultipoleSolver) -> IO ()
 runOpenGL shaders (Just vg, Just solver) = do
-  segs <- preprocessVectorGraphic solver vg
+  preprocessVectorGraphic solver vg
   newWindow (vgWidth vg) (vgHeight vg) "Vector Graphics" shaders Nothing >>= runWindow
 runOpenGL shaders (_, _) = newWindow 800 600 "Vector Graphics" shaders Nothing >>= runWindow
 
 preprocessVectorGraphic :: FastMultipoleSolver -> VectorGraphic -> IO [LineSegment]
 preprocessVectorGraphic solver vg = do
+  printf "Begin to prepreocess the vector graphic...\n"
+
   let unitSize = getUnitSize solver
   printf "Unit size: %.2f\n" unitSize
 
@@ -82,7 +85,13 @@ preprocessVectorGraphic solver vg = do
   printf "Percentage of valid segment: %.2f (%d/%d)\n"
     ((fromIntegral nValids)/(fromIntegral $ length segments) :: Double) nValids (length segments)
 
-  return segments
+  boundarySegments <- getBoundarySegments vg solver
+  let allSegments = boundarySegments ++ segments
+
+  solveDerivativeColor allSegments
+  calculateMoments solver allSegments
+
+  return allSegments
 
 ------------------------------------------------------------
 
@@ -145,7 +154,7 @@ debugSegment unitSize (LineSegment (sx:+sy) (ex:+ey) _ l _ _ _ _ _ _) = do
                                      || (si+1==ei && sj==ej+1) || (si==ei+1 && sj+1==ej)
         | otherwise                  = (si==ei && sj==ej)
       flag = toInt inSameUnit
-  printf "(%.2f,%.2f) -> (%.2f,%.2f), %d %d %d %d, len = %.2f, (%d,%d) -> (%d,%d), %d\n"
-    sx sy ex ey (toInt bsx) (toInt bsy) (toInt bex) (toInt bey) l si sj ei ej flag
+  --printf "(%.2f,%.2f) -> (%.2f,%.2f), %d %d %d %d, len = %.2f, (%d,%d) -> (%d,%d), %d\n"
+  --  sx sy ex ey (toInt bsx) (toInt bsy) (toInt bex) (toInt bey) l si sj ei ej flag
   return flag
 

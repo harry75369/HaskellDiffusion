@@ -56,7 +56,7 @@ p_xml = do
       P.between (E.lexstr "<control_point") (E.lexstr "/>") $ do
         x <- E.lexstr "x=" >> E.quotes E.float
         y <- E.lexstr "y=" >> E.quotes E.float
-        return (x :+ y)
+        return (y :+ x)
     E.lexstr "</control_points_set>"
 
     -- Left colors

@@ -1,8 +1,11 @@
 module Data.Color
 ( Color(..)
+, zipColor
 ) where
 
 ------------------------------------------------------------
+
+import Data.Complex
 
 ------------------------------------------------------------
 
@@ -35,4 +38,7 @@ instance (RealFloat a) => Fractional (Color a) where
   fromRational a = fmap fromRational $ Color a a a
 
 ------------------------------------------------------------
+
+zipColor :: Color Double -> Color Double -> Color (Complex Double)
+zipColor (Color r0 g0 b0) (Color r1 g1 b1) = Color (r0:+r1) (g0:+g1) (b0:+b1)
 

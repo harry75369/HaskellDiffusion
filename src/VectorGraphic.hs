@@ -2,6 +2,7 @@ module VectorGraphic
 ( VectorGraphic(..)
 , getVGBoundingBox
 , getDiscretizedSegments
+, getBoundarySegments
 , writeVectorGraphicSegmentsPNG
 ) where
 
@@ -47,6 +48,32 @@ getDiscretizedSegments (VectorGraphic w h curves _) fms = do
         return $ segs ++ segss
   merge curves
 
+-- | Get a clockwise boundary segments loop around the whole vector graphic.
+getBoundarySegments :: VectorGraphic -> FastMultipoleSolver -> IO [LineSegment]
+getBoundarySegments (VectorGraphic wi hi _ _) fms = do
+  let unitSize   = getUnitSize fms
+      leftColor  = Color 0 0 0
+      rightColor = Color 0 0 0
+      w = fromIntegral wi
+      h = fromIntegral hi
+      getColor (1:+0)    = (Color 1 0 0, Color 1 0 0)
+      getColor (0:+1)    = (Color 0 1 0, Color 0 1 0)
+      getColor ((-1):+0) = (Color 0 0 1, Color 0 0 1)
+      getColor (0:+(-1)) = (Color 1 1 0, Color 1 1 0)
+      getColor _        = (Color 0 0 0, Color 0 0 0)
+      makeLineSegmentAlong :: Complex Double -> Complex Double -> IO LineSegment
+      makeLineSegmentAlong dir start = makeLineSegment start end dc c 0
+        where end = start + dir * (unitSize:+0)
+              (lc, rc) = getColor dir
+              dc  = zipColor lc rc
+              c   = fmap (fromRational.toRational) (lc-rc)
+  upper  <- mapM (makeLineSegmentAlong $ 1:+0)    [i:+0     | i <- [0,unitSize..(w-unitSize)]]
+  right  <- mapM (makeLineSegmentAlong $ 0:+1)    [(w-1):+i | i <- [0,unitSize..(h-unitSize)]]
+  bottom <- mapM (makeLineSegmentAlong $ (-1):+0) [i:+(h-1) | i <- reverse [0,unitSize..(w-unitSize)]]
+  left   <- mapM (makeLineSegmentAlong $ 0:+(-1)) [0:+i     | i <- reverse [0,unitSize..(h-unitSize)]]
+
+  return $ upper ++ right ++ bottom ++ left
+
 writeVectorGraphicSegmentsPNG :: FilePath -> VectorGraphic -> [LineSegment] -> IO ()
 writeVectorGraphicSegmentsPNG fp vg segs = do
   let w = vgWidth vg
@@ -67,8 +94,8 @@ writeVectorGraphicSegmentsPNG fp vg segs = do
             where err'  = err - rise
       line (x1, y1) (x2, y2) = [(x1+x, y1+y) | (x, y) <- bressenham (x2-x1) (y2-y1)]
 
-  imgLeft  <- J.createMutableImage h w (J.PixelRGB8 255 255 255)
-  imgRight <- J.createMutableImage h w (J.PixelRGB8 255 255 255)
+  imgLeft  <- J.createMutableImage w h (J.PixelRGB8 255 255 255)
+  imgRight <- J.createMutableImage w h (J.PixelRGB8 255 255 255)
   forM_ segs $ \segment -> do
     let (x0, y0) = toInts . getStartPoint $ segment
         (x1, y1) = toInts . getEndPoint   $ segment
@@ -76,8 +103,8 @@ writeVectorGraphicSegmentsPNG fp vg segs = do
         colorLeft  = J.PixelRGB8 (to255Color rl) (to255Color gl) (to255Color bl)
         colorRight = J.PixelRGB8 (to255Color rr) (to255Color gr) (to255Color br)
     forM_ (line (x0, y0) (x1, y1)) $ \(xi, yi) -> when (xi>=0 && xi<w && yi>=0 && yi<h) $ do
-      J.writePixel imgLeft  yi xi colorLeft
-      J.writePixel imgRight yi xi colorRight
+      J.writePixel imgLeft  xi yi colorLeft
+      J.writePixel imgRight xi yi colorRight
 
   finalImgLeft  <- J.freezeImage imgLeft
   finalImgRight <- J.freezeImage imgRight
