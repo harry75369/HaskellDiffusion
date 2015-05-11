@@ -57,14 +57,16 @@ main = execParser extraArgs >>= processArgs
         processArgs (Args fp True _ _ _ l o) = fmap (makeFMSolver l o) (parseProfile $ parseXMLFile fp) >>= debugVectorGraphic
         makeFMSolver :: Int -> Int -> Maybe VectorGraphic -> (Maybe VectorGraphic, Maybe FastMultipoleSolver)
         makeFMSolver l o Nothing = (Nothing, Nothing)
-        makeFMSolver l o (Just vg) = (Just vg, Just solver)
-          where solver = initFMSolver (vgWidth vg) (vgHeight vg) l o
+        makeFMSolver l o (Just vg) = (Just vg, solver)
+          where solver = if l>0 && o>0
+                            then Just $ initFMSolver (vgWidth vg) (vgHeight vg) l o
+                            else Nothing
 
 runOpenGL :: ShaderContainer -> (Maybe VectorGraphic, Maybe FastMultipoleSolver) -> IO ()
-runOpenGL shaders (Nothing, _) = newWindow 800 600 "Vector Graphics" shaders Nothing >>= runWindow
 runOpenGL shaders (Just vg, Just solver) = do
   segs <- preprocessVectorGraphic solver vg
   newWindow (vgWidth vg) (vgHeight vg) "Vector Graphics" shaders Nothing >>= runWindow
+runOpenGL shaders (_, _) = newWindow 800 600 "Vector Graphics" shaders Nothing >>= runWindow
 
 preprocessVectorGraphic :: FastMultipoleSolver -> VectorGraphic -> IO [LineSegment]
 preprocessVectorGraphic solver vg = do
@@ -86,6 +88,7 @@ preprocessVectorGraphic solver vg = do
 
 debugVectorGraphic :: (Maybe VectorGraphic, Maybe FastMultipoleSolver) -> IO ()
 debugVectorGraphic (Nothing, _)  = putStrLn "Please provide a valid vector graphic file."
+debugVectorGraphic (_, Nothing)  = putStrLn "Wrong solver parameters."
 debugVectorGraphic (Just vg, Just solver) = do
   let curves   = vgCurves   vg
       width    = vgWidth    vg
