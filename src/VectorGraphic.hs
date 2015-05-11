@@ -41,7 +41,8 @@ getDiscretizedSegments (VectorGraphic w h curves _) fms = do
       merge :: [Curve] -> IO [LineSegment]
       merge [] = return []
       merge (x:xs) = do
-        segs <- discretizeCurveUniform x 0.1
+        -- segs <- discretizeCurveUniform x 0.1
+        segs <- discretizeCurveLattice x unitSize
         segss <- merge xs
         return $ segs ++ segss
   merge curves
