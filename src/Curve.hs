@@ -87,7 +87,7 @@ discretizeCurveUniform curve dt = do
         let lc = fmap (/2) (lc0+lc1)
             rc = fmap (/2) (rc0+rc1)
             dc = zipColor lc rc
-            c  = fmap (fromRational.toRational) (lc-rc) :: Color (Complex Double)
+            c  = lc-rc
             b  = (b0+b1) / 2 :: Double
         seg <- makeLineSegment p0 p1 dc c b
         segs <- merge (lc1:lcs) (rc1:rcs) (b1:bs) (p1:ps)
@@ -168,7 +168,7 @@ discretizeCurveLattice curve unitSize = do
                     rc = interpColor  rcs $ (t0+t1) / 2
                     b  = interpBlur   bs  $ (t0+t1) / 2
                     dc = zipColor lc rc
-                    c  = fmap (fromRational.toRational) (lc-rc)
+                    c  = lc-rc
                 seg <- makeLineSegment p0 p1 dc c b
                 segs <- genSegments (t1:ts)
                 return $ seg : segs

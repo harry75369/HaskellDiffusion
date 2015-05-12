@@ -21,8 +21,8 @@ data LineSegment = LineSegment
   , getUnitDirection   :: Complex Double
   , getNormal          :: Complex Double
   , getDebugColor      :: Color (Complex Double)
-  , getBoundaryColor   :: Color (Complex Double)
-  , getDerivativeColor :: IORef (Color (Complex Double))
+  , getBoundaryColor   :: Color Double
+  , getDerivativeColor :: IORef (Color Double)
   , getBlur            :: Double
   }
 
@@ -31,7 +31,7 @@ instance Show LineSegment where
 
 ------------------------------------------------------------
 
-makeLineSegment :: Complex Double -> Complex Double -> Color (Complex Double) -> Color (Complex Double) -> Double -> IO LineSegment
+makeLineSegment :: Complex Double -> Complex Double -> Color (Complex Double) -> Color Double -> Double -> IO LineSegment
 makeLineSegment s e dc c b = do
   let m = (s + e) / 2
       l = magnitude $ e - s
@@ -40,9 +40,9 @@ makeLineSegment s e dc c b = do
               makeUnit 0 = 0
               makeUnit d = d / (l :+ 0)
       n = u * (0 :+ 1)
-  d <- newIORef (Color 0 0 0 :: Color (Complex Double))
+  d <- newIORef (Color 0 0 0 :: Color Double)
   return $ LineSegment s e m l u n dc c d b
 
-updateDerivativeColor :: LineSegment -> Color (Complex Double) -> IO ()
+updateDerivativeColor :: LineSegment -> Color Double -> IO ()
 updateDerivativeColor seg c = (getDerivativeColor seg) $= c
 

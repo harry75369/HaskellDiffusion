@@ -4,7 +4,7 @@ module Main
 
 ------------------------------------------------------------
 
-import Control.Monad (mapM_, foldM)
+import Control.Monad (mapM_, foldM, when)
 import Data.List (sort, nub)
 import System.Environment (getArgs)
 import Options.Applicative
@@ -50,12 +50,11 @@ main :: IO ()
 main = execParser extraArgs >>= processArgs
   where shortDesc = "Diffusion Curves in Haskell, Chaoya Li <chaoya@chaoya.info> (C) 2015"
         extraArgs = info (helper <*> args) (fullDesc <> header shortDesc)
-        parseProfile act = do
-          (t, a) <- timeItT act
-          printf "Parsing time: %6.2fs\n" t >> return a
         processArgs (Args [] _ v g f _ _) = runOpenGL (ShaderContainer v g f) (Nothing, Nothing)
-        processArgs (Args fp False v g f l o) = fmap (makeFMSolver l o) (parseProfile $ parseXMLFile fp) >>= runOpenGL (ShaderContainer v g f)
-        processArgs (Args fp True _ _ _ l o) = fmap (makeFMSolver l o) (parseProfile $ parseXMLFile fp) >>= debugVectorGraphic
+        processArgs (Args fp False v g f l o) = fmap (makeFMSolver l o) (profileParse $ parseXMLFile fp) >>= runOpenGL (ShaderContainer v g f)
+        processArgs (Args fp True _ _ _ l o) = fmap (makeFMSolver l o) (profileParse $ parseXMLFile fp) >>= debugVectorGraphic
+        profileParse :: IO a -> IO a
+        profileParse = makeProfiler "Parsing time: %6.2fs\n"
         makeFMSolver :: Int -> Int -> Maybe VectorGraphic -> (Maybe VectorGraphic, Maybe FastMultipoleSolver)
         makeFMSolver l o Nothing = (Nothing, Nothing)
         makeFMSolver l o (Just vg) = (Just vg, solver)
@@ -76,19 +75,22 @@ preprocessVectorGraphic solver vg = do
   let unitSize = getUnitSize solver
   printf "Unit size: %.2f\n" unitSize
 
-  segments <- getDiscretizedSegments vg solver
-  printf "Number of line segments: %d\n" (length segments)
+  let profileDiscretization = makeProfiler "Curve discretization time: %6.2fs\n"
+  segments <- profileDiscretization $ getDiscretizedSegments vg solver
 
+  let nSegs = length segments
+  printf "Number of line segments: %d\n" nSegs
   nValids <- foldM (\accum seg -> do
         flag <- debugSegment unitSize seg
         return $ accum+flag) 0 segments
   printf "Percentage of valid segment: %.2f (%d/%d)\n"
-    ((fromIntegral nValids)/(fromIntegral $ length segments) :: Double) nValids (length segments)
+    ((fromIntegral nValids)/(fromIntegral $ nSegs) :: Double) nValids nSegs
 
   boundarySegments <- getBoundarySegments vg solver
   let allSegments = boundarySegments ++ segments
+      profileBEM  = makeProfiler "BEM solving time: %6.2fs\n"
 
-  solveDerivativeColor allSegments
+  profileBEM $ solveDerivativeColor allSegments
   calculateMoments solver allSegments
 
   return allSegments
@@ -118,7 +120,7 @@ debugVectorGraphic (Just vg, Just solver) = do
   printf "Number of curves: %d\n" (length curves)
   printf "Number of total control points: %d\n" nTotalCPs
   printf "Bounding box: (%.2f, %.2f, %.2f, %.2f)\n" xMin yMin xMax yMax
-  mapM_ print $ sort $ nub $ map seesee curves
+  -- mapM_ print $ sort $ nub $ map seesee curves
 
   segs <- preprocessVectorGraphic solver vg
   writeVectorGraphicSegmentsPNG "segments" vg segs
@@ -154,7 +156,13 @@ debugSegment unitSize (LineSegment (sx:+sy) (ex:+ey) _ l _ _ _ _ _ _) = do
                                      || (si+1==ei && sj==ej+1) || (si==ei+1 && sj+1==ej)
         | otherwise                  = (si==ei && sj==ej)
       flag = toInt inSameUnit
-  --printf "(%.2f,%.2f) -> (%.2f,%.2f), %d %d %d %d, len = %.2f, (%d,%d) -> (%d,%d), %d\n"
-  --  sx sy ex ey (toInt bsx) (toInt bsy) (toInt bex) (toInt bey) l si sj ei ej flag
+  when (not inSameUnit) $
+    printf "(%.2f,%.2f) -> (%.2f,%.2f), %d %d %d %d, len = %.2f, (%d,%d) -> (%d,%d), %d\n"
+      sx sy ex ey (toInt bsx) (toInt bsy) (toInt bex) (toInt bey) l si sj ei ej flag
   return flag
+
+makeProfiler :: String -> IO a -> IO a
+makeProfiler format act = do
+  (t, a) <- timeItT act
+  printf format t >> return a
 

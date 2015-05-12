@@ -57,7 +57,7 @@ executable HaskellDiffusion
   -- other-extensions:
 
   -- Other library packages from which modules are imported.
-  build-depends:       base >=4.8 && <4.9
+  build-depends:       base
                      , parsec
                      , OpenGLRaw
                      , GLURaw
@@ -67,9 +67,10 @@ executable HaskellDiffusion
                      , optparse-applicative
                      , StateVar
                      , filepath
-                     , criterion
                      , timeit
                      , linear
+                     , eigen == 2.0.1
+                     , vector
 
   -- Directories containing source files.
   hs-source-dirs:      src
