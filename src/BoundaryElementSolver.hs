@@ -9,6 +9,7 @@ import qualified Data.Eigen.LA     as E
 import qualified Data.Vector       as V
 import           Data.Complex
 import           Control.Monad (forM_)
+import           Text.Printf
 
 import Data.Color
 import LineSegment
@@ -55,9 +56,9 @@ solveDerivativeColor segs = do
       matrixPi = E.generate n n $ \i j ->
         if i == j then pi else 0
 
-      vectorEr = E.solve E.JacobiSVD matrixB $ (matrixA - matrixPi) * vectorCr
-      vectorEg = E.solve E.JacobiSVD matrixB $ (matrixA - matrixPi) * vectorCg
-      vectorEb = E.solve E.JacobiSVD matrixB $ (matrixA - matrixPi) * vectorCb
+      vectorEr = E.solve E.HouseholderQR matrixB $ (matrixA - matrixPi) * vectorCr
+      vectorEg = E.solve E.HouseholderQR matrixB $ (matrixA - matrixPi) * vectorCg
+      vectorEb = E.solve E.HouseholderQR matrixB $ (matrixA - matrixPi) * vectorCb
 
   forM_ [0..(n-1)] $ \i -> do
     let seg = segments V.! i

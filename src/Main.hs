@@ -11,7 +11,9 @@ import Options.Applicative
 import System.TimeIt (timeItT)
 import Text.Printf
 import Data.Complex
+import Data.StateVar
 
+import Data.Color
 import Parsers.XMLParser
 import OpenGL.Window
 import OpenGL.Shader
@@ -51,8 +53,8 @@ main = execParser extraArgs >>= processArgs
   where shortDesc = "Diffusion Curves in Haskell, Chaoya Li <chaoya@chaoya.info> (C) 2015"
         extraArgs = info (helper <*> args) (fullDesc <> header shortDesc)
         processArgs (Args [] _ v g f _ _) = runOpenGL (ShaderContainer v g f) (Nothing, Nothing)
-        processArgs (Args fp False v g f l o) = fmap (makeFMSolver l o) (profileParse $ parseXMLFile fp) >>= runOpenGL (ShaderContainer v g f)
-        processArgs (Args fp True _ _ _ l o) = fmap (makeFMSolver l o) (profileParse $ parseXMLFile fp) >>= debugVectorGraphic
+        processArgs (Args fp False v g f l o) = fmap (makeFMSolver l o) (profileParse $! parseXMLFile fp) >>= runOpenGL (ShaderContainer v g f)
+        processArgs (Args fp True _ _ _ l o) = fmap (makeFMSolver l o) (profileParse $! parseXMLFile fp) >>= debugVectorGraphic
         profileParse :: IO a -> IO a
         profileParse = makeProfiler "Parsing time: %6.2fs\n"
         makeFMSolver :: Int -> Int -> Maybe VectorGraphic -> (Maybe VectorGraphic, Maybe FastMultipoleSolver)
@@ -76,7 +78,7 @@ preprocessVectorGraphic solver vg = do
   printf "Unit size: %.2f\n" unitSize
 
   let profileDiscretization = makeProfiler "Curve discretization time: %6.2fs\n"
-  segments <- profileDiscretization $ getDiscretizedSegments vg solver
+  segments <- profileDiscretization $! getDiscretizedSegments vg solver
 
   let nSegs = length segments
   printf "Number of line segments: %d\n" nSegs
@@ -90,10 +92,15 @@ preprocessVectorGraphic solver vg = do
   let allSegments = boundarySegments ++ segments
       profileBEM  = makeProfiler "BEM solving time: %6.2fs\n"
 
-  profileBEM $ solveDerivativeColor allSegments
+  profileBEM $! solveDerivativeColor allSegments >> mapM_ debugSegmentColor allSegments
   calculateMoments solver allSegments
 
   return allSegments
+
+makeProfiler :: String -> IO a -> IO a
+makeProfiler format act = do
+  (t, a) <- timeItT act
+  printf format t >> return a
 
 ------------------------------------------------------------
 
@@ -161,8 +168,10 @@ debugSegment unitSize (LineSegment (sx:+sy) (ex:+ey) _ l _ _ _ _ _ _) = do
       sx sy ex ey (toInt bsx) (toInt bsy) (toInt bex) (toInt bey) l si sj ei ej flag
   return flag
 
-makeProfiler :: String -> IO a -> IO a
-makeProfiler format act = do
-  (t, a) <- timeItT act
-  printf format t >> return a
+debugSegmentColor :: LineSegment -> IO ()
+debugSegmentColor (LineSegment _ _ _ _ _ _ _ c e _) = do
+  let printColor :: Color Double -> IO ()
+      printColor (Color r g b) = printf "Color %.2f %.2f %.2f" r g b
+  ec <- get e
+  printColor c >> printf " " >> printColor ec >> printf "\n"
 
