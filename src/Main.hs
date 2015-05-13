@@ -9,6 +9,7 @@ import Data.List (sort, nub)
 import System.Environment (getArgs)
 import Options.Applicative
 import System.TimeIt (timeItT)
+import System.FilePath (takeBaseName)
 import Text.Printf
 import Data.Complex
 import Data.StateVar
@@ -90,9 +91,12 @@ preprocessVectorGraphic solver vg = do
 
   boundarySegments <- getBoundarySegments vg solver
   let allSegments = boundarySegments ++ segments
-      profileBEM  = makeProfiler "BEM solving time: %6.2fs\n"
+  let fileName = takeBaseName $ vgFilePath vg
+  writeVectorGraphicSegmentsPNG (fileName ++ "Segments") vg allSegments
 
+  let profileBEM  = makeProfiler "BEM solving time: %6.2fs\n"
   profileBEM $! solveDerivativeColor allSegments >> mapM_ debugSegmentColor allSegments
+
   calculateMoments solver allSegments
 
   return allSegments
@@ -129,8 +133,8 @@ debugVectorGraphic (Just vg, Just solver) = do
   printf "Bounding box: (%.2f, %.2f, %.2f, %.2f)\n" xMin yMin xMax yMax
   -- mapM_ print $ sort $ nub $ map seesee curves
 
-  segs <- preprocessVectorGraphic solver vg
-  writeVectorGraphicSegmentsPNG "segments" vg segs
+  preprocessVectorGraphic solver vg
+  return ()
 
 debugSegment :: Double -> LineSegment -> IO Int
 debugSegment unitSize (LineSegment (sx:+sy) (ex:+ey) _ l _ _ _ _ _ _) = do

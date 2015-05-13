@@ -69,8 +69,8 @@ getBoundarySegments (VectorGraphic wi hi _ _) fms = do
               c   = fmap (fromRational.toRational) (lc-rc)
   upper  <- mapM (makeLineSegmentAlong $ 1:+0)    [i:+0     | i <- [0,unitSize..(w-unitSize)]]
   right  <- mapM (makeLineSegmentAlong $ 0:+1)    [(w-1):+i | i <- [0,unitSize..(h-unitSize)]]
-  bottom <- mapM (makeLineSegmentAlong $ (-1):+0) [i:+(h-1) | i <- reverse [0,unitSize..(w-unitSize)]]
-  left   <- mapM (makeLineSegmentAlong $ 0:+(-1)) [0:+i     | i <- reverse [0,unitSize..(h-unitSize)]]
+  bottom <- mapM (makeLineSegmentAlong $ (-1):+0) [i:+(h-1) | i <- reverse [unitSize,2*unitSize..w]]
+  left   <- mapM (makeLineSegmentAlong $ 0:+(-1)) [0:+i     | i <- reverse [unitSize,2*unitSize..h]]
 
   return $ upper ++ right ++ bottom ++ left
 

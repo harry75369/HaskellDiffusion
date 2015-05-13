@@ -23,7 +23,9 @@ solveDerivativeColor segs = do
       dot :: Complex Double -> Complex Double -> Double
       dot (a:+b) (c:+d) = a*c + b*d
 
-      matrixN = E.generate n n $ \i j ->
+  printf "Sovling a linear system of size: %d\n" n
+
+  let matrixN = E.generate n n $ \i j ->
         let iSeg = segments V.! i
             jSeg = segments V.! j
             dij  = (getMidPoint iSeg) - (getMidPoint jSeg)
