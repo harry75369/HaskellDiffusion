@@ -171,7 +171,11 @@ discretizeCurveLattice curve unitSize = do
                     c  = lc-rc
                 seg <- makeLineSegment p0 p1 dc c b
                 segs <- genSegments (t1:ts)
-                return $ seg : segs
+
+                let aboutZero x = (abs x) < 1e-6
+                if aboutZero (t0-t1)
+                   then return segs
+                   else return $ seg : segs
 
   fmap concat $ mapM getIntersectedSegments splines
 

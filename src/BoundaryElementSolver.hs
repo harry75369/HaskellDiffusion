@@ -8,7 +8,7 @@ import qualified Data.Eigen.Matrix as E
 import qualified Data.Eigen.LA     as E
 import qualified Data.Vector       as V
 import           Data.Complex
-import           Control.Monad (forM_)
+import           Control.Monad (forM_, when, forM)
 import           Text.Printf
 
 import Data.Color
@@ -24,6 +24,20 @@ solveDerivativeColor segs = do
       dot (a:+b) (c:+d) = a*c + b*d
 
   printf "Sovling a linear system of size: %d\n" n
+  lens <- forM segs $ \seg -> do
+    let (sx :+ sy) = getStartPoint seg
+        (ex :+ ey) = getEndPoint seg
+        (ux :+ uy) = getUnitDirection seg
+        (nx :+ ny) = getNormal seg
+        l           = getLength seg
+        Color r g b = getBoundaryColor seg
+
+    printf "(%.2f,%.2f) -> (%.2f,%.2f), u=(%.2f, %.2f), n=(%.2f,%.2f), Color %.2f %.2f %.2f, length=%.2f\n"
+      sx sy ex ey ux uy nx ny r g b l
+
+    return l
+
+  printf "Minimum segment length: %.14f\n" $ minimum lens
 
   let matrixN = E.generate n n $ \i j ->
         let iSeg = segments V.! i
@@ -58,9 +72,19 @@ solveDerivativeColor segs = do
       matrixPi = E.generate n n $ \i j ->
         if i == j then pi else 0
 
-      vectorEr = E.solve E.HouseholderQR matrixB $ (matrixA - matrixPi) * vectorCr
-      vectorEg = E.solve E.HouseholderQR matrixB $ (matrixA - matrixPi) * vectorCg
-      vectorEb = E.solve E.HouseholderQR matrixB $ (matrixA - matrixPi) * vectorCb
+      rankA = E.rank E.ColPivHouseholderQR matrixA
+      rankB = E.rank E.ColPivHouseholderQR matrixB
+
+  printf "Rank of matrixA: %d\n" rankA
+  printf "Rank of matrixB: %d\n" rankB
+  when (rankB /= n) $ do
+    print matrixA
+    print matrixB
+    error "Invertible matrixB!"
+
+  let vectorEr = E.solve E.ColPivHouseholderQR matrixB $ (matrixA - matrixPi) * vectorCr
+      vectorEg = E.solve E.ColPivHouseholderQR matrixB $ (matrixA - matrixPi) * vectorCg
+      vectorEb = E.solve E.ColPivHouseholderQR matrixB $ (matrixA - matrixPi) * vectorCb
 
   forM_ [0..(n-1)] $ \i -> do
     let seg = segments V.! i

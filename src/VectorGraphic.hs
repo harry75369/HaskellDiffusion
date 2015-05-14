@@ -4,6 +4,7 @@ module VectorGraphic
 , getDiscretizedSegments
 , getBoundarySegments
 , writeVectorGraphicSegmentsPNG
+, compositeSolverLatticePNG
 ) where
 
 ------------------------------------------------------------
@@ -52,8 +53,6 @@ getDiscretizedSegments (VectorGraphic w h curves _) fms = do
 getBoundarySegments :: VectorGraphic -> FastMultipoleSolver -> IO [LineSegment]
 getBoundarySegments (VectorGraphic wi hi _ _) fms = do
   let unitSize   = getUnitSize fms
-      leftColor  = Color 0 0 0
-      rightColor = Color 0 0 0
       w = fromIntegral wi
       h = fromIntegral hi
       getColor (1:+0)    = (Color 1 0 0, Color 1 0 0)
@@ -61,6 +60,7 @@ getBoundarySegments (VectorGraphic wi hi _ _) fms = do
       getColor ((-1):+0) = (Color 0 0 1, Color 0 0 1)
       getColor (0:+(-1)) = (Color 1 1 0, Color 1 1 0)
       getColor _        = (Color 0 0 0, Color 0 0 0)
+      {-
       makeLineSegmentAlong :: Complex Double -> Complex Double -> IO LineSegment
       makeLineSegmentAlong dir start = makeLineSegment start end dc c 0
         where end = start + dir * (unitSize:+0)
@@ -73,6 +73,19 @@ getBoundarySegments (VectorGraphic wi hi _ _) fms = do
   left   <- mapM (makeLineSegmentAlong $ 0:+(-1)) [0:+i     | i <- reverse [unitSize,2*unitSize..h]]
 
   return $ upper ++ right ++ bottom ++ left
+  -}
+  let makeLineSegmentAlong dir start len = makeLineSegment start end dc c 0
+        where end = start + dir * (len:+0)
+              (lc, rc) = getColor dir
+              dc = zipColor lc rc
+              c  = lc - rc
+  upper  <- makeLineSegmentAlong (1:+0)    (0:+0) w
+  right  <- makeLineSegmentAlong (0:+1)    (w:+0) h
+  bottom <- makeLineSegmentAlong ((-1):+0) (w:+h) w
+  left   <- makeLineSegmentAlong (0:+(-1)) (0:+h) h
+
+  return $ upper : right : bottom : left : []
+
 
 writeVectorGraphicSegmentsPNG :: FilePath -> VectorGraphic -> [LineSegment] -> IO ()
 writeVectorGraphicSegmentsPNG fp vg segs = do
@@ -110,4 +123,21 @@ writeVectorGraphicSegmentsPNG fp vg segs = do
   finalImgRight <- J.freezeImage imgRight
   J.savePngImage (fp++"Left.png")  (J.ImageRGB8 finalImgLeft)
   J.savePngImage (fp++"Right.png") (J.ImageRGB8 finalImgRight)
+
+compositeSolverLatticePNG :: FilePath -> FastMultipoleSolver -> IO ()
+compositeSolverLatticePNG fp solver = do
+  Right (J.ImageRGB8 originImg) <- J.readImage (fp++"SegmentsLeft.png")
+  let w = J.imageWidth  originImg
+      h = J.imageHeight originImg
+      s = round $ getUnitSize solver
+
+  let latticeImg = J.generateImage latticeG w h
+        where latticeG i j
+                | s <= 1             = J.pixelAt originImg i j
+                | i == 0 || j == 0
+                || i `mod` s + 1 == s
+                || j `mod` s + 1 == s = J.PixelRGB8 0 0 0
+                | otherwise         = J.pixelAt originImg i j
+
+  J.savePngImage (fp++"Lattice.png") (J.ImageRGB8 latticeImg)
 

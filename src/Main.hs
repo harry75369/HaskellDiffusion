@@ -75,12 +75,18 @@ preprocessVectorGraphic :: FastMultipoleSolver -> VectorGraphic -> IO [LineSegme
 preprocessVectorGraphic solver vg = do
   printf "Begin to prepreocess the vector graphic...\n"
 
+  -- Print FMM solver parameters
   let unitSize = getUnitSize solver
   printf "Unit size: %.2f\n" unitSize
+  printf "Max hierarchical level: %d\n" $ getMaxLevel solver
+  printf "Min hierarchical level: %d\n" $ getMinLevel solver
+  printf "Max expansion order: %d\n" $ getMaxOrder solver
 
+  -- Discretize curves into line segments
   let profileDiscretization = makeProfiler "Curve discretization time: %6.2fs\n"
   segments <- profileDiscretization $! getDiscretizedSegments vg solver
 
+  -- Print line segments information
   let nSegs = length segments
   printf "Number of line segments: %d\n" nSegs
   nValids <- foldM (\accum seg -> do
@@ -89,14 +95,20 @@ preprocessVectorGraphic solver vg = do
   printf "Percentage of valid segment: %.2f (%d/%d)\n"
     ((fromIntegral nValids)/(fromIntegral $ nSegs) :: Double) nValids nSegs
 
+  -- Add boundary line segments
   boundarySegments <- getBoundarySegments vg solver
   let allSegments = boundarySegments ++ segments
+
+  -- Write all segments into image files
   let fileName = takeBaseName $ vgFilePath vg
   writeVectorGraphicSegmentsPNG (fileName ++ "Segments") vg allSegments
+  compositeSolverLatticePNG fileName solver
 
+  -- Solve color derivative of a line segment using BEM solver
   let profileBEM  = makeProfiler "BEM solving time: %6.2fs\n"
   profileBEM $! solveDerivativeColor allSegments >> mapM_ debugSegmentColor allSegments
 
+  -- Calculate moments for FMM solver
   calculateMoments solver allSegments
 
   return allSegments
