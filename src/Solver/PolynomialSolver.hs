@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 -- |
--- Module      :  PolynomialSolver
+-- Module      :  Solver.PolynomialSolver
 -- Copyright   :  (c) 2011-2015 diagrams-solve team (see LICENSE)
 -- License     :  BSD-style (see LICENSE)
 -- Maintainer  :  diagrams-discuss@googlegroups.com
@@ -8,7 +8,7 @@
 -- Exact solving of low-degree (n <= 4) polynomials.
 --
 -----------------------------------------------------------------------------
-module PolynomialSolver
+module Solver.PolynomialSolver
        ( quadForm
        , cubForm
        , quartForm

@@ -15,9 +15,9 @@ import qualified Codec.Picture as J
 import qualified Codec.Picture.Types as J
 
 import Data.Color
-import Curve
-import LineSegment
-import FastMultipoleSolver
+import Geometry.Curve
+import Geometry.LineSegment
+import Solver.FastMultipoleSolver
 
 ------------------------------------------------------------
 

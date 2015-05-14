@@ -11,7 +11,7 @@ import           Control.Monad (forM)
 import           Data.Complex
 import           Data.Color
 import           VectorGraphic
-import           Curve
+import           Geometry.Curve
 
 ------------------------------------------------------------
 

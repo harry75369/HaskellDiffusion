@@ -1,4 +1,4 @@
-module FastMultipoleSolver
+module Solver.FastMultipoleSolver
 ( FastMultipoleSolver(..)
 , initFMSolver
 , calculateMoments
@@ -6,7 +6,7 @@ module FastMultipoleSolver
 
 ------------------------------------------------------------
 
-import LineSegment
+import Geometry.LineSegment
 
 ------------------------------------------------------------
 

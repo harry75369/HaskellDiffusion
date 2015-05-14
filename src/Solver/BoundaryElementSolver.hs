@@ -1,4 +1,4 @@
-module BoundaryElementSolver
+module Solver.BoundaryElementSolver
 ( solveDerivativeColor
 ) where
 
@@ -12,7 +12,7 @@ import           Control.Monad (forM_, when, forM)
 import           Text.Printf
 
 import Data.Color
-import LineSegment
+import Geometry.LineSegment
 
 ------------------------------------------------------------
 

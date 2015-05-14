@@ -1,4 +1,4 @@
-module Curve
+module Geometry.Curve
 ( Curve(..)
 , getCurveBoundingBox
 , getCurveLeftColorGidRange
@@ -16,8 +16,8 @@ import Text.Printf
 import Data.List (sort, nub)
 
 import Data.Color
-import LineSegment
-import PolynomialSolver (cubForm)
+import Geometry.LineSegment
+import Solver.PolynomialSolver (cubForm)
 
 ------------------------------------------------------------
 

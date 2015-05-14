@@ -19,10 +19,10 @@ import Parsers.XMLParser
 import OpenGL.Window
 import OpenGL.Shader
 import VectorGraphic
-import Curve
-import LineSegment
-import FastMultipoleSolver
-import BoundaryElementSolver
+import Geometry.Curve
+import Geometry.LineSegment
+import Solver.FastMultipoleSolver
+import Solver.BoundaryElementSolver
 
 ------------------------------------------------------------
 

@@ -1,4 +1,4 @@
-module LineSegment
+module Geometry.LineSegment
 ( LineSegment(..)
 , makeLineSegment
 , updateDerivativeColor
