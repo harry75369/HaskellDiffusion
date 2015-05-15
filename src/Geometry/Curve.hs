@@ -158,7 +158,7 @@ discretizeCurveLattice curve unitSize = do
               maxY = ceiling $ maximum [y0, y1, y2, y3] / unitSize
               xts = [filter (\x -> x>=0 && x<=1) $ cubForm xa xb xc (x0-unitSize*(fromIntegral i)) | i <- [minX..maxX]]
               yts = [filter (\x -> x>=0 && x<=1) $ cubForm ya yb yc (y0-unitSize*(fromIntegral j)) | j <- [minY..maxY]]
-              ts  = sort $ nub $ 0 : 1 : (concat xts ++ concat yts)
+              ts  = sort $ nub $ [0,0.25..1] ++ (concat xts ++ concat yts)
               genSegments []  = return []
               genSegments [t] = return []
               genSegments (t0:t1:ts) = do

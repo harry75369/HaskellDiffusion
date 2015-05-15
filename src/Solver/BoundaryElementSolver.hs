@@ -78,8 +78,8 @@ solveDerivativeColor segs = do
   printf "Rank of matrixA: %d\n" rankA
   printf "Rank of matrixB: %d\n" rankB
   when (rankB /= n) $ do
-    print matrixA
-    print matrixB
+    -- print matrixA
+    -- print matrixB
     error "Invertible matrixB!"
 
   let vectorEr = E.solve E.ColPivHouseholderQR matrixB $ (matrixA - matrixPi) * vectorCr
