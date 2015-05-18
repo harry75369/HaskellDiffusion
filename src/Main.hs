@@ -54,16 +54,17 @@ main = execParser extraArgs >>= processArgs
   where shortDesc = "Diffusion Curves in Haskell, Chaoya Li <chaoya@chaoya.info> (C) 2015"
         extraArgs = info (helper <*> args) (fullDesc <> header shortDesc)
         processArgs (Args [] _ v g f _ _) = runOpenGL (ShaderContainer v g f) (Nothing, Nothing)
-        processArgs (Args fp False v g f l o) = fmap (makeFMSolver l o) (profileParse $! parseXMLFile fp) >>= runOpenGL (ShaderContainer v g f)
-        processArgs (Args fp True _ _ _ l o) = fmap (makeFMSolver l o) (profileParse $! parseXMLFile fp) >>= debugVectorGraphic
+        processArgs (Args fp False v g f l o) = (profileParse $! parseXMLFile fp) >>= appendFMSolver l o >>= runOpenGL (ShaderContainer v g f)
+        processArgs (Args fp True _ _ _ l o) = (profileParse $! parseXMLFile fp) >>= appendFMSolver l o >>= debugVectorGraphic
         profileParse :: IO a -> IO a
         profileParse = makeProfiler "Parsing time: %6.2fs\n"
-        makeFMSolver :: Int -> Int -> Maybe VectorGraphic -> (Maybe VectorGraphic, Maybe FastMultipoleSolver)
-        makeFMSolver l o Nothing = (Nothing, Nothing)
-        makeFMSolver l o (Just vg) = (Just vg, solver)
-          where solver = if l>0 && o>0
-                            then Just $ initFMSolver (vgWidth vg) (vgHeight vg) l o
-                            else Nothing
+        appendFMSolver :: Int -> Int -> Maybe VectorGraphic -> IO (Maybe VectorGraphic, Maybe FastMultipoleSolver)
+        appendFMSolver l o Nothing = return (Nothing, Nothing)
+        appendFMSolver l o (Just vg) = do
+          let w = vgWidth vg
+              h = vgHeight vg
+          solver <- initFMSolver w h l o
+          return (Just vg, Just solver)
 
 runOpenGL :: ShaderContainer -> (Maybe VectorGraphic, Maybe FastMultipoleSolver) -> IO ()
 runOpenGL shaders (Just vg, Just solver) = do
