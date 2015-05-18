@@ -110,7 +110,15 @@ preprocessVectorGraphic solver vg = do
   profileBEM $! solveDerivativeColor allSegments >> mapM_ debugSegmentColor allSegments
 
   -- Calculate moments for FMM solver
-  calculateMoments solver allSegments
+  let profileCalcMoments = makeProfiler "Moments calculating time: %6.2fs\n"
+  profileCalcMoments $! calculateMoments solver allSegments
+
+  -- Translate moments between hierarchies
+  let profileTransMoments = makeProfiler "Moments translating time: %6.2fs\n"
+  profileTransMoments $! translateMoments solver
+
+  -- Calculate the local coefficients for FMM solver
+  calculateLoccoef solver
 
   return allSegments
 
