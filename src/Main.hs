@@ -107,7 +107,7 @@ preprocessVectorGraphic solver vg = do
 
   -- Solve color derivative of a line segment using BEM solver
   let profileBEM  = makeProfiler "BEM solving time: %6.2fs\n"
-  profileBEM $! solveDerivativeColor allSegments >> mapM_ debugSegmentColor allSegments
+  profileBEM $! solveDerivativeColor allSegments -- >> mapM_ debugSegmentColor allSegments
 
   -- Calculate moments for FMM solver
   let profileCalcMoments = makeProfiler "Moments calculating time: %6.2fs\n"
@@ -118,7 +118,12 @@ preprocessVectorGraphic solver vg = do
   profileTransMoments $! translateMoments solver
 
   -- Calculate the local coefficients for FMM solver
-  calculateLoccoef solver
+  let profileCalcLoccoef = makeProfiler "Local coefficients calculating time: %6.2fs\n"
+  profileCalcLoccoef $! calculateLoccoef solver
+
+  -- Calculate the final image and write it out (not part of preprocess)
+  let profileSaveImage = makeProfiler "Calculating and saving image time: %6.2fs\n"
+  profileSaveImage $! saveImage solver fileName (vgWidth vg) (vgHeight vg)
 
   return allSegments
 

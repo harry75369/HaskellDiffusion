@@ -32,8 +32,8 @@ solveDerivativeColor segs = do
         l           = getLength seg
         Color r g b = getBoundaryColor seg
 
-    printf "(%.2f,%.2f) -> (%.2f,%.2f), u=(%.2f, %.2f), n=(%.2f,%.2f), Color %.2f %.2f %.2f, length=%.2f\n"
-      sx sy ex ey ux uy nx ny r g b l
+    -- printf "(%.2f,%.2f) -> (%.2f,%.2f), u=(%.2f, %.2f), n=(%.2f,%.2f), Color %.2f %.2f %.2f, length=%.2f\n"
+    --  sx sy ex ey ux uy nx ny r g b l
 
     return l
 
