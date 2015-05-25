@@ -23,7 +23,7 @@ p_xml = do
         r <- fmap normalize $ E.lexstr "R=" >> E.quotes E.integer
         gid <- E.lexstr "globalID=" >> E.quotes E.integer
         b <- fmap normalize $ E.lexstr "B=" >> E.quotes E.integer
-        return (Color r g b, fromIntegral gid)
+        return (Color b g r, fromIntegral gid)
 
   -- XML header
   E.lexstr "<!DOCTYPE CurveSetXML>"
