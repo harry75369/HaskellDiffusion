@@ -8,7 +8,8 @@ module OpenGL.Camera
 
 ------------------------------------------------------------
 
-import Graphics.Rendering.OpenGL.Raw
+--import Graphics.Rendering.OpenGL.Raw
+import Graphics.GL
 
 import Data.IORef
 import Data.StateVar

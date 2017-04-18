@@ -69,7 +69,7 @@ executable HaskellDiffusion
                      , filepath
                      , timeit
                      , linear
-                     , eigen == 2.0.1
+                     , eigen
                      , vector
 
   -- Directories containing source files.

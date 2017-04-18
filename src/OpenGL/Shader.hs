@@ -5,7 +5,8 @@ module OpenGL.Shader
 
 ------------------------------------------------------------
 
-import Graphics.Rendering.OpenGL.Raw
+--import Graphics.Rendering.OpenGL.Raw
+import Graphics.GL
 import Foreign.C.String (peekCString, withCString)
 import Foreign.Marshal.Alloc (alloca)
 import Foreign.Marshal.Utils (with)
@@ -46,9 +47,9 @@ loadShaders (ShaderContainer vp gp fp) = do
 
   -- Create program and attach shaders
   programID <- glCreateProgram
-  attachShader programID gl_VERTEX_SHADER vp
-  attachShader programID gl_GEOMETRY_SHADER gp
-  attachShader programID gl_FRAGMENT_SHADER fp
+  attachShader programID GL_VERTEX_SHADER vp
+  attachShader programID GL_GEOMETRY_SHADER gp
+  attachShader programID GL_FRAGMENT_SHADER fp
 
   -- Link program and check status
   glLinkProgram programID
@@ -58,8 +59,8 @@ loadShaders (ShaderContainer vp gp fp) = do
 
 checkShaderStatus shaderID = alloca $ \pstatus -> alloca $ \plen -> do
   poke pstatus 0 >> poke plen 0
-  glGetShaderiv shaderID gl_COMPILE_STATUS pstatus
-  glGetShaderiv shaderID gl_INFO_LOG_LENGTH plen
+  glGetShaderiv shaderID GL_COMPILE_STATUS pstatus
+  glGetShaderiv shaderID GL_INFO_LOG_LENGTH plen
   len <- peek plen
   msg <- alloca $ \pmsg ->
     glGetShaderInfoLog shaderID len nullPtr pmsg >> peekCString pmsg
@@ -68,8 +69,8 @@ checkShaderStatus shaderID = alloca $ \pstatus -> alloca $ \plen -> do
 
 checkProgramStatus programID = alloca $ \pstatus -> alloca $ \plen -> do
   poke pstatus 0 >> poke plen 0
-  glGetProgramiv programID gl_LINK_STATUS pstatus
-  glGetProgramiv programID gl_INFO_LOG_LENGTH plen
+  glGetProgramiv programID GL_LINK_STATUS pstatus
+  glGetProgramiv programID GL_INFO_LOG_LENGTH plen
   len <- peek plen
   msg <- alloca $ \pmsg ->
     glGetProgramInfoLog programID len nullPtr pmsg >> peekCString pmsg

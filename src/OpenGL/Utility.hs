@@ -8,7 +8,8 @@ module OpenGL.Utility
 
 ------------------------------------------------------------
 
-import Graphics.Rendering.OpenGL.Raw
+--import Graphics.Rendering.OpenGL.Raw
+import Graphics.GL
 import Control.Monad (liftM)
 import Foreign.Ptr (Ptr(..), castPtr)
 import Foreign.C.String (peekCString)
@@ -23,11 +24,11 @@ import           Text.PrettyPrint (($+$), (<+>))
 
 displayGLInfo :: IO ()
 displayGLInfo = do
-  vendor   <- getGLString gl_VENDOR
-  version  <- getGLString gl_VERSION
-  renderer <- getGLString gl_RENDERER
-  samples      <- getGLInteger gl_SAMPLES
-  texture_size <- getGLInteger gl_MAX_TEXTURE_SIZE
+  vendor   <- getGLString GL_VENDOR
+  version  <- getGLString GL_VERSION
+  renderer <- getGLString GL_RENDERER
+  samples      <- getGLInteger GL_SAMPLES
+  texture_size <- getGLInteger GL_MAX_TEXTURE_SIZE
 
   putStrLn $ Pretty.render $ Pretty.nest 0 (
         Pretty.text "=================================================="

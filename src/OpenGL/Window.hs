@@ -5,8 +5,10 @@ module OpenGL.Window
 
 ------------------------------------------------------------
 
-import           Graphics.Rendering.OpenGL.Raw
-import           Graphics.Rendering.GLU.Raw
+--import           Graphics.Rendering.OpenGL.Raw
+--import           Graphics.Rendering.GLU.Raw
+import           Graphics.GL
+import           Graphics.GLU
 import qualified Graphics.UI.GLFW as GLFW
 import qualified Codec.Picture as J
 
@@ -129,17 +131,17 @@ drawWindow windowContainer = callback
       glUniform2f resolutionLoc (fromIntegral w) (fromIntegral h)
       globalTime $~ (+0.1)
       m <- getMVPMatrix camera
-      with m $ \ptr -> glUniformMatrix4fv mvpMatrixLoc 1 (fromIntegral gl_TRUE) (castPtr ptr)
+      with m $ \ptr -> glUniformMatrix4fv mvpMatrixLoc 1 (fromIntegral GL_TRUE) (castPtr ptr)
 
     updateUniforms (DefaultLocations mvpMatrixLoc) = do
       m <- getMVPMatrix camera
-      with m $ \ptr -> glUniformMatrix4fv mvpMatrixLoc 1 (fromIntegral gl_TRUE) (castPtr ptr)
+      with m $ \ptr -> glUniformMatrix4fv mvpMatrixLoc 1 (fromIntegral GL_TRUE) (castPtr ptr)
 
     -- type WindowRefreshCallback = Window -> IO ()
     callback :: GLFW.WindowRefreshCallback
     callback win = do
-      glClear $ fromIntegral $ gl_COLOR_BUFFER_BIT .|. gl_DEPTH_BUFFER_BIT
-      updateUniforms uLocations >> glDrawArrays gl_TRIANGLE_STRIP 0 nVertices
+      glClear $ fromIntegral $ GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT
+      updateUniforms uLocations >> glDrawArrays GL_TRIANGLE_STRIP 0 nVertices
 
 resizeWindow windowContainer = callback
   where
@@ -200,7 +202,7 @@ scrollCallback windowContainer = callback
 
 initializeGL :: ShaderContainer -> IO OpenGLStates
 initializeGL shaders = do
-  glEnable gl_DEPTH_TEST
+  glEnable GL_DEPTH_TEST
   glClearColor 0.5 0.5 0.5 1.0
 
   -- Generate and bind vertex array object
@@ -209,7 +211,7 @@ initializeGL shaders = do
 
   -- Generate and bind vertex buffer object
   [vbo] <- getGLGen glGenBuffers 1
-  glBindBuffer gl_ARRAY_BUFFER vbo
+  glBindBuffer GL_ARRAY_BUFFER vbo
 
   -- Initialize screen quad
   let nVertices = 4 :: GLsizei
@@ -217,9 +219,9 @@ initializeGL shaders = do
       texCoords = [0, 0, 0, 1, 1, 0, 1, 1] :: [GLfloat]
       sizeVertexPos = fromIntegral $ sizeOf vertexPos
       sizeTexCoords = fromIntegral $ sizeOf texCoords
-  glBufferData gl_ARRAY_BUFFER (sizeVertexPos + sizeTexCoords) nullPtr gl_STATIC_DRAW
-  withArray vertexPos $ \ptr -> glBufferSubData gl_ARRAY_BUFFER 0 sizeVertexPos ptr
-  withArray texCoords $ \ptr -> glBufferSubData gl_ARRAY_BUFFER sizeVertexPos sizeTexCoords ptr
+  glBufferData GL_ARRAY_BUFFER (sizeVertexPos + sizeTexCoords) nullPtr GL_STATIC_DRAW
+  withArray vertexPos $ \ptr -> glBufferSubData GL_ARRAY_BUFFER 0 sizeVertexPos ptr
+  withArray texCoords $ \ptr -> glBufferSubData GL_ARRAY_BUFFER sizeVertexPos sizeTexCoords ptr
 
   -- Load shaders
   pid <- loadShaders shaders
@@ -228,8 +230,8 @@ initializeGL shaders = do
   texCoordsLoc <- liftM fromIntegral (withCString "texCoords" $ \ptr -> glGetAttribLocation pid ptr)
 
   -- Setup vertex attributes
-  glVertexAttribPointer vertexPosLoc 2 gl_FLOAT (fromIntegral gl_FALSE) 0 nullPtr
-  glVertexAttribPointer texCoordsLoc 2 gl_FLOAT (fromIntegral gl_FALSE) 0 (plusPtr nullPtr $ fromIntegral sizeVertexPos)
+  glVertexAttribPointer vertexPosLoc 2 GL_FLOAT (fromIntegral GL_FALSE) 0 nullPtr
+  glVertexAttribPointer texCoordsLoc 2 GL_FLOAT (fromIntegral GL_FALSE) 0 (plusPtr nullPtr $ fromIntegral sizeVertexPos)
   glEnableVertexAttribArray vertexPosLoc
   glEnableVertexAttribArray texCoordsLoc
 
